@@ -10,8 +10,6 @@ Personalized career recommendation and skill gap analysis powered by AI.
 
 ## Features
 
-## Features
-
 - **Career Assessment** _(leverages NLP to analyze user input)_  
   - **Educational Background Test** _(interprets responses using NLP)_  
   - **Skill Reflection Test** _(extracts skills and insights from text)_  

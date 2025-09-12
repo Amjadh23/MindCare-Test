@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from core.database import SessionLocal, get_db
-from models.assessment import UserTest, GeneratedQuestion, FollowUpAnswers
+from models.assessment import UserTest, GeneratedQuestion, FollowUpAnswers, CareerRecommendation, CareerJobMatch, UserSkillsKnowledge
 from schemas.assessment import (
     UserResponses,
     SkillReflectionRequest,
@@ -11,7 +11,7 @@ from schemas.assessment import (
     UserProfileMatchResponse,
 )
 from services.openai_service import generate_questions
-from services.embedding_service import create_user_embedding, match_user_to_job
+from services.embedding_service import create_user_embedding, match_user_to_job, analyze_user_skills_knowledge
 import json
 
 router = APIRouter()
@@ -141,7 +141,7 @@ def submit_follow_up(data: FollowUpResponses):
 # Generate user profile and job matches
 # -----------------------------
 @router.post("/user-profile-match", response_model=UserProfileMatchResponse)
-def user_profile_match(request: SkillReflectionRequest):
+def user_profile_match(request: SkillReflectionRequest, db: Session = Depends(get_db),):
     user_test_id = request.user_test_id
 
     # Create user embedding + profile text
@@ -152,6 +152,12 @@ def user_profile_match(request: SkillReflectionRequest):
             top_matches=[]
         )
 
+    skills_knowledge_result = analyze_user_skills_knowledge(user_test_id)
+    if "error" in skills_knowledge_result:
+        print(f"[WARN] Skills/Knowledge analysis failed: {skills_knowledge_result['error']}")
+    else:
+        print(f"[INFO] Skills/Knowledge saved for user_test_id {user_test_id}")
+    
     # Match jobs
     matches = match_user_to_job(user_test_id, user_data["user_embedding"])
     if "error" in matches:
@@ -160,10 +166,38 @@ def user_profile_match(request: SkillReflectionRequest):
             top_matches=[]
         )
 
+    # Save into DB
+    try:
+        # Insert recommendation
+        rec = CareerRecommendation(
+            user_test_id=user_test_id,
+            profile_text=user_data["profile_text"],
+        )
+        db.add(rec)
+        db.flush()  # so we get rec.id
+
+        # Insert job matches
+        for job in matches["top_matches"]:
+            db.add(CareerJobMatch(
+                recommendation_id=rec.id,
+                job_index=job["job_index"],
+                similarity_score=job["similarity_score"],
+                similarity_percentage=job["similarity_percentage"],
+                job_title=job["job_title"],
+                job_description=job["job_description"],
+                required_skills=job["required_skills"],
+                required_knowledge=job["required_knowledge"],
+            ))
+
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        return UserProfileMatchResponse(profile_text=user_data["profile_text"], top_matches=[])
+
     # Convert job dicts to JobMatch models
     top_matches_list = [JobMatch(**job) for job in matches["top_matches"]]
 
-    # Return clean payload
+    # Return response to frontend
     return UserProfileMatchResponse(
         profile_text=user_data["profile_text"],
         top_matches=top_matches_list

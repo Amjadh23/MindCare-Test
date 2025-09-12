@@ -46,7 +46,7 @@ def strip_json_codeblock(text: str) -> str:
 def generate_questions(user_input: str):
     # 1. Extract topics
     topics = call_openai(
-        f"""Extract all **coding-related** skills, languages, libraries, and frameworks from this statement:
+        f"""Extract all **coding-related** topics, skills, languages, libraries, and frameworks from this statement:
         '{user_input}'.
         Output them as a single comma-separated list. No numbering, no explanations, no extra words."""
     )
@@ -64,6 +64,7 @@ def generate_questions(user_input: str):
     if language_for_scaffold.lower() != "none":
         coding_questions_text = call_openai(
             f"""Generate exactly 5 coding problems based on: '{topics}'.
+            - Must cover all of the programming languages extracted.
             - Include a short code snippet in '{language_for_scaffold}' (≤30 lines).
             - Then write a question about that snippet.
             - Difficulty ratio: 1 Easy, 1 Medium, 3 Hard.
@@ -84,6 +85,7 @@ def generate_questions(user_input: str):
     non_coding_questions_text = call_openai(
         f"""Generate exactly 10 non-coding conceptual questions based on: '{topics}'.
         - No coding required.
+        - Must cover all of the topics extracted.
         - Cover definitions, theory, practical applications.
         - Difficulty ratio: 1 Easy, 3 Medium, 6 Hard.
         - Return questions as JSON list, each object with:

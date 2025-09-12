@@ -196,9 +196,14 @@ def get_user_embedding_data(user_test_id: int) -> Dict[str, Any]:
                 .filter(GeneratedQuestion.id == f.question_id)
                 .first()
             )
+            
+            # Compare user's selected answer with correct answer from database
             is_correct = bool(
-                correct_q and correct_q.answer == f.selected_option
+                correct_q and 
+                str(correct_q.answer).strip().upper() == str(f.selected_option).split('.')[0].strip().upper()
             )
+            print(f"Question {f.question_id}: Correct='{correct_q.answer if correct_q else 'N/A'}', Selected='{f.selected_option}', Extracted='{str(f.selected_option).split('.')[0].strip().upper()}', IsCorrect={is_correct}")
+            
             results.append(
                 {
                     "question_id": f.question_id,               # from FollowUpAnswers
@@ -210,7 +215,7 @@ def get_user_embedding_data(user_test_id: int) -> Dict[str, Any]:
             )
 
         # 4) Calculate score (how true the skill reflection is)
-        score = calculate_score(results)
+        score_result = calculate_score(results)
 
         # 5) Normalize programmingLanguages to a list (in case stored as JSON/text)
         prog_langs = user_res.programmingLanguages
@@ -230,7 +235,7 @@ def get_user_embedding_data(user_test_id: int) -> Dict[str, Any]:
                 "skillReflection": getattr(user_res, "skillReflection", None),
             },
             "follow_up_results": results,
-            "score": score,
+            "score": score_result["score_percentage"], # Extract the numeric score
         }
         return combined_data
     finally:
@@ -476,7 +481,7 @@ def match_user_to_job(
                     "Extract a clear, comprehensive job description from the text below. "
                     "Focus on the relevant responsibilities of the career. "
                     "Write it concisely in a professional tone (1 paragraph). "
-                    "Starts with 'This career/career involves...'"
+                    "Starts with 'This career involves...'"
                     "Avoid mentioning overly detailed information such as the company, years of experience, etc."
                     "Less than 400 characters.\n\n"
                     f"JOB DESCRIPTION TEXT:\n{job_desc}\n\n"

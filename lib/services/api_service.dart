@@ -15,7 +15,7 @@ class ApiService {
     while (attempt < maxRetries) {
       try {
         print('API Attempt ${attempt + 1}');
-        final response = await request().timeout(Duration(seconds: 30));
+        final response = await request().timeout(const Duration(seconds: 30));
         return response;
       } catch (e) {
         attempt++;

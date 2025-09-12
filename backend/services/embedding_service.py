@@ -199,10 +199,11 @@ def get_user_embedding_data(user_test_id: int) -> Dict[str, Any]:
             )
             results.append(
                 {
-                    "question_id": f.question_id,
-                    "selected_option": f.selected_option,
-                    "answer": correct_q.answer if correct_q else None,
-                    "is_correct": is_correct,
+                    "question_id": f.question_id,               # from FollowUpAnswers
+                    "question_text": correct_q.question_text if correct_q else None,  # from GeneratedQuestion
+                    "selected_option": f.selected_option,       # from FollowUpAnswers
+                    "correct_answer": correct_q.answer if correct_q else None,  # from GeneratedQuestion
+                    "is_correct": is_correct,                   # computed by comparing selected vs answer
                 }
             )
 
@@ -215,6 +216,7 @@ def get_user_embedding_data(user_test_id: int) -> Dict[str, Any]:
             # naive split fallback; replace with json.loads if you store JSON text
             prog_langs = [p.strip() for p in prog_langs.split(",") if p.strip()]
 
+        # 6) Build combined data for downstream AI analysis
         combined_data = {
             "user_test_id": user_test_id,
             "user_responses": {
@@ -232,6 +234,55 @@ def get_user_embedding_data(user_test_id: int) -> Dict[str, Any]:
     finally:
         db.close()
 
+# -----------------------------
+# Analyze user skills & knowledge
+# -----------------------------
+def analyze_user_skills_knowledge(user_test_id: int) -> Dict[str, Any]:
+    combined_data = get_user_embedding_data(user_test_id)
+    if "error" in combined_data:
+        return combined_data
+
+    prompt = f"""
+    Analyze the student's profile data below.
+
+    INPUT DATA:
+    {combined_data}
+
+    TASK:
+    - Extract SKILLS (technical + soft skills).
+    - Extract KNOWLEDGE AREAS (subject domains, concepts).
+    
+    OUTPUT RULES:
+    - Respond strictly in JSON.
+    - Use keys: skills, knowledge.
+    - Each must be a list of short strings.
+    - Example:
+      {{
+        "skills": ["Python", "Communication", "Problem Solving"],
+        "knowledge": ["Algorithms", "Database Systems"]
+      }}
+    """
+
+    try:
+        response = call_openai(prompt, max_tokens=500, temperature=0.2)
+        result = json.loads(response)
+
+        # Save to DB
+        db = SessionLocal()
+        try:
+            entry = UserSkillsKnowledge(
+                user_test_id=user_test_id,
+                skills=result.get("skills", []),
+                knowledge=result.get("knowledge", [])
+            )
+            db.add(entry)
+            db.commit()
+        finally:
+            db.close()
+
+        return result
+    except Exception as e:
+        return {"error": f"Failed to analyze skills/knowledge: {e}"}
 
 # -----------------------------
 # Profile generation via OpenAI
@@ -338,7 +389,7 @@ def match_user_to_job(
             try:
                 summary_prompt = (
                     "Extract a clear, comprehensive job description from the text below. "
-                    "Focus on responsibilities. "
+                    "Focus on the relevant responsibilities of the career. "
                     "Less than 400 characters. "
                     "Write it concisely in a professional tone (1 paragraph).\n\n"
                     f"JOB DESCRIPTION TEXT:\n{job_desc}\n\n"

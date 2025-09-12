@@ -1,16 +1,32 @@
-# code_map
+# CodeMap
 
-A new Flutter project.
+Personalized career assessment and skill gap analysis powered by AI.
 
-## Getting Started
+## About
 
-This project is a starting point for a Flutter application.
+> This project is an AI-powered career recommendation app that analyzes educational background, skill reflections, and validation/follow-up tests, matches them with suitable job profiles, and provides personalized learning recommendations.
 
-A few resources to get you started if this is your first Flutter project:
+---
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## Features
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Features
+
+- **Career Assessment** _(leverages NLP to analyze user input)_  
+  - **Educational Background Test** _(interprets responses using NLP)_  
+  - **Skill Reflection Test** _(extracts skills and insights from text)_  
+  - **Follow-Up Test** _(generates personalized MCQs from user reflections)_
+- **Generate Embeddings & Job Matches** _(uses NLP for semantic similarity and matching)_  
+- **Career Recommendations** _(tailors suggestions based on analyzed input)_  
+- **Skill Gap Analysis** _(compares user skills with job requirements using NLP)_
+
+
+---
+
+## Tech Stack
+
+- **Backend:** FastAPI, Python, SQLAlchemy  
+- **Frontend:** Flutter  
+- **Database:** PostgreSQL
+- **AI / ML:** OpenAI API, Hugging Face Transformers  
+

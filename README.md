@@ -1,6 +1,6 @@
 # CodeMap
 
-Personalized career assessment and skill gap analysis powered by AI.
+Personalized career recommendation and skill gap analysis powered by AI.
 
 ## About
 

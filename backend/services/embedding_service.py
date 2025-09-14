@@ -395,9 +395,14 @@ def _build_profile_prompt(combined_data: Dict[str, Any]) -> str:
         "by follow-up test answers (higher = more accurate self-assessment). "
         "Avoid fluff; keep it evidence-based and specific.\n\n"
         f"USER DATA:\n{combined_data}\n\n"
-        "Return a single descriptive paragraph with bullet-style clauses separated by semicolons."
+        "IMPORTANT FORMATTING RULES:\n"
+        "1. Return exactly ONE descriptive paragraph\n"
+        "2. Use bullet-style clauses separated by semicolons ONLY\n"
+        "3. Each clause should be concise and complete\n"
+        "4. Do not use markdown formatting, asterisks, or other symbols\n"
+        "5. Example format: 'Strong in Java and Python; Experienced with ML frameworks; Excellent communication skills;'\n"
+        "6. Ensure the response can be easily parsed by splitting on semicolons"
     )
-
 
 def generate_user_profile_text(combined_data: Dict[str, Any]) -> str:
     prompt = _build_profile_prompt(combined_data)

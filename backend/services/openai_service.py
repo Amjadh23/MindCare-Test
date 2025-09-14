@@ -104,11 +104,13 @@ def generate_questions(user_input: str):
             f"""Convert the following coding questions into JSON multiple-choice questions (MCQs):
             {coding_questions}
 
-            Rules:
-            - Keep difficulty and category.
-            - Provide exactly 4 options (A, B, C, D), only 1 correct.
-            - Return **only JSON**, no extra text.
-            - Example format:
+            Strict rules:
+            - Return only valid JSON, no explanation or extra text.
+            - Keep difficulty and category unchanged.
+            - Each question must have exactly 4 options labeled "A", "B", "C", "D".
+            - Only 1 option is correct; indicate it with "answer": "A"/"B"/"C"/"D".
+            - Options format example: "A. Option text"
+            - JSON format MUST be an array of objects like:
             [
               {{"question": "...", "options": ["A","B","C","D"], "answer":"A", "difficulty":"Easy", "category":"Coding"}}
             ]"""
@@ -131,11 +133,13 @@ def generate_questions(user_input: str):
             f"""Convert the following non-coding questions into JSON multiple-choice questions (MCQs):
             {non_coding_questions}
 
-            Rules:
-            - Keep difficulty and category.
-            - Provide exactly 4 options (A, B, C, D), only 1 correct.
-            - Return **only JSON**, no extra text.
-            - Example format:
+            Strict rules:
+            - Return only valid JSON, no explanation or extra text.
+            - Keep difficulty and category unchanged.
+            - Each question must have exactly 4 options labeled "A", "B", "C", "D".
+            - Only 1 option is correct; indicate it with "answer": "A"/"B"/"C"/"D".
+            - Options format example: "A. Option text"
+            - JSON format MUST be an array of objects like:
             [
               {{"question": "...", "options": ["A","B","C","D"], "answer":"A", "difficulty":"Easy", "category":"Non-coding"}}
             ]"""

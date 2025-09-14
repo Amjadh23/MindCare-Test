@@ -1,5 +1,6 @@
 import glob
 import os
+import re
 import pickle
 import json
 from typing import Any, Dict, List
@@ -164,6 +165,12 @@ def call_openai(prompt: str, max_tokens=2000, temperature=0.2) -> str:
     )
     return resp.choices[0].message.content.strip()
 
+def normalize_option(opt: str) -> str:
+    if not opt:
+        return ""
+    match = re.match(r'([A-Z])', opt.strip().upper())
+    return match.group(1) if match else opt.strip().upper()
+
 # -----------------------------
 # Data aggregation for a user
 # -----------------------------
@@ -199,11 +206,10 @@ def get_user_embedding_data(user_test_id: int) -> Dict[str, Any]:
             
             # Compare user's selected answer with correct answer from database
             is_correct = bool(
-                correct_q and 
-                str(correct_q.answer).strip().upper() == str(f.selected_option).split('.')[0].strip().upper()
+               correct_q and 
+               normalize_option(correct_q.answer) == normalize_option(f.selected_option)
             )
-            print(f"Question {f.question_id}: Correct='{correct_q.answer if correct_q else 'N/A'}', Selected='{f.selected_option}', Extracted='{str(f.selected_option).split('.')[0].strip().upper()}', IsCorrect={is_correct}")
-            
+  
             results.append(
                 {
                     "question_id": f.question_id,               # from FollowUpAnswers
@@ -426,7 +432,7 @@ def create_user_embedding(user_test_id: int) -> Dict[str, Any]:
 # -----------------------------
 def match_user_to_job(
     user_test_id: int,
-    user_embedding: List[float], use_openai_summary: bool = True, # new flag to control summary generation
+    user_embedding: List[float], use_openai_summary: bool = True,
 ) -> Dict[str, Any]:
     """
     Compare user embedding to all job embeddings using cosine similarity.

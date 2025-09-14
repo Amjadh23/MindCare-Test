@@ -91,63 +91,58 @@ class _CareerRecommendationsScreenState
     });
   }
 
-  // Helper function to format the profile text with better structure
+// Helper function to format the profile text with better structure
   List<Widget> _formatProfileText(String text) {
     final List<Widget> widgets = [];
-    final lines = text.split(';');
+
+    // Clean the text to handle any OpenAI formatting inconsistencies
+    String cleanedText = text
+        .replaceAll('*', '') // Remove markdown asterisks
+        .replaceAll('#', '') // Remove markdown headers
+        .replaceAll('- ', '') // Remove markdown dashes
+        .replaceAll('• ', '') // Remove bullet points
+        .trim();
+
+    // Split by semicolons as requested in your prompt
+    final lines = cleanedText.split(';');
 
     for (var line in lines) {
       line = line.trim();
       if (line.isEmpty) continue;
 
-      // Check if it's a heading
-      if (line.toLowerCase().contains('user profile:') ||
-          line.toLowerCase().contains('top job matches:')) {
-        widgets.add(
-          Text(
-            line,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-        );
-        widgets.add(const SizedBox(height: 8));
+      // Remove any trailing periods
+      if (line.endsWith('.')) {
+        line = line.substring(0, line.length - 1);
       }
-      // Check if it's a subheading
-      else if (line.contains(':')) {
-        final parts = line.split(':');
-        widgets.add(
-          RichText(
-            text: TextSpan(
-              style: DefaultTextStyle.of(context).style,
-              children: [
-                TextSpan(
-                  text: '${parts[0]}:',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                TextSpan(text: parts.length > 1 ? parts[1] : ''),
-              ],
-            ),
-          ),
-        );
-        widgets.add(const SizedBox(height: 4));
-      }
-      // Regular bullet point
-      else {
-        widgets.add(
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('• '),
-              Expanded(
-                child: Text(
-                  line,
-                  textAlign: TextAlign.left,
-                ),
+
+      // For the current OpenAI response format, treat everything as regular bullet points
+      // since it doesn't include the section headings you were expecting
+      widgets.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('• ', style: TextStyle(fontSize: 16)),
+            Expanded(
+              child: Text(
+                line,
+                textAlign: TextAlign.left,
+                style: const TextStyle(fontSize: 16, height: 1.4),
               ),
-            ],
-          ),
-        );
-        widgets.add(const SizedBox(height: 4));
-      }
+            ),
+          ],
+        ),
+      );
+      widgets.add(const SizedBox(height: 8));
+    }
+
+    // Fallback if parsing fails completely
+    if (widgets.isEmpty) {
+      widgets.add(
+        Text(
+          text,
+          style: const TextStyle(fontSize: 16, height: 1.4),
+        ),
+      );
     }
 
     return widgets;
@@ -379,7 +374,7 @@ class _CareerRecommendationsScreenState
 
     widgets.add(
       const Text(
-        "Responsibilities:",
+        "Career Description:",
         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
       ),
     );

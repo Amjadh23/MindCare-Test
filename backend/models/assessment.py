@@ -71,3 +71,16 @@ class UserSkillsKnowledge(Base):
     knowledge = Column(JSON)
 
     user_test = relationship("UserTest", back_populates="skills_knowledge")
+    
+class UserJobSkillMatch(Base):
+    __tablename__ = "user_job_skill_match"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_test_id = Column(Integer, ForeignKey("user_test.id"))
+    job_match_id = Column(Integer, ForeignKey("career_job_matches.id"))
+    skill_status = Column(JSON)     # {"Python": "achieved", "SQL": "missing"}
+    knowledge_status = Column(JSON) # {"Databases": "achieved", "ML": "missing"}
+
+    user_test = relationship("UserTest")
+    job_match = relationship("CareerJobMatch")
+

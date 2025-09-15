@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Dict, Optional, Any
 
 
 # -----------------------------
@@ -40,8 +40,8 @@ class JobMatch(BaseModel):
     similarity_percentage: float
     job_title: str
     job_description: str
-    required_skills: Optional[List[str]] = None
-    required_knowledge: Optional[List[str]] = None
+    required_skills: Dict[str, str]
+    required_knowledge: Dict[str, str] 
 
 
 class UserProfileMatchResponse(BaseModel):

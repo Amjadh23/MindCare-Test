@@ -137,4 +137,25 @@ class ApiService {
       return null;
     }
   }
+
+// Get skill and knowledge gap analysis for all jobs
+  static Future<List<Map<String, dynamic>>> getGapAnalysis({
+    required int userTestId,
+  }) async {
+    final url = Uri.parse("$baseUrl/gap-analysis/all/$userTestId");
+
+    final response = await _requestWithRetry(() => http.post(
+          url,
+          headers: {"Content-Type": "application/json"},
+        ));
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      if (decoded is List) return List<Map<String, dynamic>>.from(decoded);
+      throw Exception("Unexpected response format for all gap analysis");
+    } else {
+      throw Exception(
+          "Error fetching gap analysis: ${response.statusCode} ${response.body}");
+    }
+  }
 }

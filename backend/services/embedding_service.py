@@ -262,39 +262,30 @@ def analyze_user_skills_knowledge(user_test_id: int) -> Dict[str, Any]:
     {combined_data}
 
     TASK:
-    - Extract SKILLS (technical + soft skills) from the user's skillReflection AND their performance in follow-up questions
-    - Extract KNOWLEDGE AREAS (subject domains, concepts) from the user's courseworkExperience AND their performance in follow-up questions
-    - Pay special attention to the follow-up results section which contains:
-      * question_text: The actual question asked
-      * selected_option: What the user answered
-      * correct_answer: The correct answer
-      * is_correct: Whether the user got it right
-    - Use the score ({combined_data.get('score', 0)}) to weight the reliability of the user's self-assessment
+    - Extract all TECHNICAL SKILLS from the user's skillReflection and follow-up answers.
+    - Assign a SKILL LEVEL for each: Beginner, Intermediate, or Expert.
+    - Extract all KNOWLEDGE AREAS (subject domains, concepts, methodologies) from the user's courseworkExperience and follow-up answers.
+    - Assign a KNOWLEDGE LEVEL for each: Beginner, Intermediate, or Expert.
+    - Be as specific as possible: if a skill or knowledge area is mentioned in context (e.g., 'Python with Django'), include both Python and Django separately.
+    - Include all skills and knowledge mentioned across answers, even if implied.
 
     OUTPUT RULES:
-    - Respond strictly in JSON format ONLY, without any code block markers.
-    - Use keys: skills, knowledge.
-    - Each must be a list of short strings.
+    - Respond STRICTLY in JSON format with exactly two keys: "skills" and "knowledge".
+    - Each key should map names to levels.
+    - Remove duplicates and keep the most specific term.
+    - Do NOT include explanations, comments, or markdown code blocks.
     - Example:
-      {{
-        "skills": ["Python", "Communication", "Problem Solving"],
-        "knowledge": ["Algorithms", "Database Systems"]
-      }}
-    - DO NOT use markdown code blocks like ```json or ```.
-    - Base your analysis on both the user's self-reported skills AND their demonstrated knowledge in the follow-up questions.
-    - For skills: Include both what they claim to know AND what they demonstrated through correct answers
-    - For knowledge: Focus on domains/concepts where they showed proficiency through correct answers
+    {{
+        "skills": {{"Python": "Intermediate", "Communication": "Beginner"}},
+        "knowledge": {{"Algorithms": "Beginner", "Database Systems": "Expert"}}
+    }}
+    - DO NOT use markdown code blocks
     """
 
     try:
         response = call_openai(prompt, max_tokens=500, temperature=0.2)
-        
-        # Debug the OpenAI response
-        print(f"OpenAI response: {response}")
-        
-        # Clean the response
         cleaned_response = response.strip()
-        
+
         # Remove code block markers if present
         if cleaned_response.startswith('```json'):
             cleaned_response = cleaned_response[7:]
@@ -303,83 +294,50 @@ def analyze_user_skills_knowledge(user_test_id: int) -> Dict[str, Any]:
         if cleaned_response.endswith('```'):
             cleaned_response = cleaned_response[:-3]
         cleaned_response = cleaned_response.strip()
-        
-        print(f"Cleaned response: {cleaned_response}")
-        
-        # Try to parse the cleaned response
-        try:
-            result = json.loads(cleaned_response)
-        except json.JSONDecodeError:
-            # If JSON parsing fails, try to extract JSON from the text
-            import re
-            json_match = re.search(r'\{.*\}', cleaned_response, re.DOTALL)
-            if json_match:
-                result = json.loads(json_match.group())
-            else:
-                raise ValueError("No valid JSON found in response")
-        
-        # Validate the result structure
-        if not isinstance(result, dict):
-            raise ValueError("Response is not a dictionary")
-        
-        if "skills" not in result or "knowledge" not in result:
-            raise ValueError("Missing required keys 'skills' or 'knowledge'")
-        
-        if not isinstance(result["skills"], list) or not isinstance(result["knowledge"], list):
-            raise ValueError("Skills and knowledge should be lists")
-        
+
+        # Parse JSON
+        result = json.loads(cleaned_response)
+
+        # Store as JSON dicts
+        skills_dict = result.get("skills", {})
+        knowledge_dict = result.get("knowledge", {})
+
         # Save to DB
         db = SessionLocal()
         try:
-            # Check if entry already exists
             existing_entry = db.query(UserSkillsKnowledge).filter(
                 UserSkillsKnowledge.user_test_id == user_test_id
             ).first()
-            
-            # Convert to JSON-serializable format if needed
-            skills_list = result.get("skills", [])
-            knowledge_list = result.get("knowledge", [])
-            
-            # Ensure we're saving lists, not strings
-            if isinstance(skills_list, str):
-                skills_list = [skill.strip() for skill in skills_list.split(",") if skill.strip()]
-            if isinstance(knowledge_list, str):
-                knowledge_list = [knowledge.strip() for knowledge in knowledge_list.split(",") if knowledge.strip()]
-            
+
             if existing_entry:
-                # Update existing entry
-                existing_entry.skills = skills_list
-                existing_entry.knowledge = knowledge_list
+                existing_entry.skills = skills_dict
+                existing_entry.knowledge = knowledge_dict
                 print(f"Updated existing entry for user_test_id {user_test_id}")
             else:
-                # Create new entry
                 entry = UserSkillsKnowledge(
                     user_test_id=user_test_id,
-                    skills=skills_list,
-                    knowledge=knowledge_list
+                    skills=skills_dict,
+                    knowledge=knowledge_dict,
                 )
                 db.add(entry)
                 print(f"Created new entry for user_test_id {user_test_id}")
-            
+
             db.commit()
             print(f"Successfully saved skills/knowledge for user_test_id {user_test_id}")
-            print(f"Skills: {skills_list}")
-            print(f"Knowledge: {knowledge_list}")
-            
-            return result
-            
+            return {"skills": skills_dict, "knowledge": knowledge_dict}
+
         except Exception as db_error:
             db.rollback()
             print(f"Database error: {db_error}")
             return {"error": f"Database error: {str(db_error)}"}
         finally:
             db.close()
-        
+
     except Exception as e:
         error_msg = f"Failed to analyze skills/knowledge: {str(e)}. Response: {cleaned_response if 'cleaned_response' in locals() else 'No response'}"
         print(error_msg)
         return {"error": error_msg}
-
+    
 # -----------------------------
 # Profile generation via OpenAI
 # -----------------------------
@@ -437,7 +395,8 @@ def create_user_embedding(user_test_id: int) -> Dict[str, Any]:
 # -----------------------------
 def match_user_to_job(
     user_test_id: int,
-    user_embedding: List[float], use_openai_summary: bool = True,
+    user_embedding: List[float], 
+    use_openai_summary: bool = True,
 ) -> Dict[str, Any]:
     """
     Compare user embedding to all job embeddings using cosine similarity.
@@ -475,95 +434,161 @@ def match_user_to_job(
     
     # Use unique_indices (deduplicated & limited to top_n)
     top_matches = []
+    
+    def clean_openai_json(raw_text: str) -> str:
+        """Remove code blocks or extra whitespace from OpenAI response"""
+        text = raw_text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        elif text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        return text.strip()
+    
+    def parse_json_response(response_text: str, response_type: str) -> Dict[str, str]:
+        """Safely parse JSON response from OpenAI with error handling"""
+        try:
+            cleaned_text = clean_openai_json(response_text)
+            print(f"Cleaned {response_type} response: {cleaned_text}")
+            
+            # Try to parse as JSON
+            parsed_data = json.loads(cleaned_text)
+            
+            # Validate it's a dictionary
+            if not isinstance(parsed_data, dict):
+                print(f"Warning: {response_type} response is not a dictionary")
+                return {}
+                
+            return parsed_data
+            
+        except json.JSONDecodeError as e:
+            print(f"JSON decode error for {response_type}: {e}")
+            print(f"Raw response: {response_text}")
+            
+            # Try to extract JSON from malformed response
+            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            if json_match:
+                try:
+                    extracted_json = json_match.group(0)
+                    parsed_data = json.loads(extracted_json)
+                    if isinstance(parsed_data, dict):
+                        return parsed_data
+                except:
+                    pass
+                    
+            return {}
+        except Exception as e:
+            print(f"Unexpected error parsing {response_type}: {e}")
+            return {}
+    
     for idx in unique_indices:
         job = df.iloc[idx]
         similarity_score = float(similarities[idx])
         similarity_percentage = round(similarity_score * 100, 2)
-        job_desc = job.get("Full Job Description", "N/A")
+        original_job_desc = job.get("Full Job Description", "N/A")
         
-        # Initialize variables for skills and knowledge
+        # Initialize variables
+        job_desc = original_job_desc
         required_skills = []
         required_knowledge = []
         
         # Generate cleaned/comprehensive description using OpenAI
-        if use_openai_summary and job_desc != "N/A":
+        if use_openai_summary and original_job_desc != "N/A":
             try:
                 summary_prompt = (
                     "Extract a clear, comprehensive job description from the text below. "
                     "Focus on the relevant responsibilities of the career. "
                     "Write it concisely in a professional tone (1 paragraph). "
-                    "Starts with 'This career involves...'"
+                    "Start with 'This career involves...'"
                     "Avoid mentioning overly detailed information such as the company, years of experience, etc."
-                    "Less than 400 characters.\n\n"
-                    f"JOB DESCRIPTION TEXT:\n{job_desc}\n\n"
+                    "Keep it under 400 characters.\n\n"
+                    f"JOB DESCRIPTION TEXT:\n{original_job_desc}\n\n"
                     "Return only the cleaned-up job description without any additional text."
                 )
                 
                 skills_prompt = (
-                    "ANALYZE THIS JOB DESCRIPTION AND EXTRACT ALL REQUIRED SKILLS:\n\n"
-                    f"{job_desc}\n\n"
+                    "ANALYZE THIS JOB DESCRIPTION AND EXTRACT ALL REQUIRED SKILLS WITH PROFICIENCY LEVELS:\n\n"
+                    f"{original_job_desc}\n\n"
                     "EXTRACTION RULES:\n"
-                    "1. Extract BOTH technical skills (programming languages, tools, software) AND soft skills (communication, leadership, teamwork)\n"
-                    "2. Return ONLY a comma-separated list without any additional text\n"
-                    "3. Be specific - if it mentions 'Python', include 'Python', not just 'programming'\n"
-                    "4. Exclude any languages such as English, Malay, Mandarin'\n"
-                    "5. Include skills mentioned in requirements, qualifications, or responsibilities sections\n"
-                    "6. Remove duplicates and keep the most specific term\n\n"
-                    "EXAMPLE OUTPUT: Python, Java, SQL, React, AWS, Communication, Teamwork, Problem Solving\n\n"
-                    "EXTRACTED SKILLS:"
+                    "1. Extract ONLY technical skills: programming languages, frameworks, libraries, tools, software, and platforms.\n"
+                    "2. Assign a proficiency level for each skill: Basic, Intermediate, or Advanced.\n"
+                    "3. Respond STRICTLY in JSON format as a dictionary: {\"Skill Name\": \"Level\", ...} without any additional text.\n"
+                    "4. Be specific: if 'Python' is mentioned, include 'Python', not just 'programming'.\n"
+                    "5. Be as specific as possible: if 'Python with Django' is mentioned, include 'Python' and 'Django' as separate entries.\n"
+                    "6. Exclude non-technical or natural languages such as English, Malay, Mandarin.\n"
+                    "7. Include skills mentioned in requirements, qualifications, or responsibilities sections.\n"
+                    "8. Remove duplicates and keep the most specific term.\n"
+                    "9. If multiple skills are mentioned together, create separate entries for each.\n"
+                    "10. DO NOT include explanations, markdown, or code blocks.\n\n"
+                    "EXAMPLE OUTPUT:\n"
+                    "{\"Python\": \"Advanced\", \"Django\": \"Intermediate\", \"SQL\": \"Intermediate\"}"
                 )
-                
+
                 knowledge_prompt = (
-                    "ANALYZE THIS JOB DESCRIPTION AND EXTRACT ALL REQUIRED KNOWLEDGE AREAS:\n\n"
-                    f"{job_desc}\n\n"
+                    "ANALYZE THIS JOB DESCRIPTION AND EXTRACT ALL REQUIRED KNOWLEDGE AREAS WITH PROFICIENCY LEVELS:\n\n"
+                    f"{original_job_desc}\n\n"
                     "EXTRACTION RULES:\n"
-                    "1. Extract knowledge domains, subject matter expertise, and specialized areas\n"
-                    "2. Include things like: algorithms, data structures, machine learning, web development, cybersecurity, etc.\n"
-                    "3. Return ONLY a comma-separated list without any additional text\n"
-                    "4. Focus on knowledge requirements, not just skills\n"
-                    "5. Remove duplicates\n\n"
-                    "EXAMPLE OUTPUT: Algorithms, Data Structures, Machine Learning, Web Development, Database Systems, Cloud Computing\n\n"
-                    "EXTRACTED KNOWLEDGE:"
+                    "1. Extract knowledge domains, concepts, methodologies, and specialized areas.\n"
+                    "2. Assign a proficiency level for each: Basic, Intermediate, or Advanced.\n"
+                    "3. Respond STRICTLY in JSON format as a dictionary: {\"Knowledge Name\": \"Level\", ...}\n"
+                    "4. Examples: Algorithms, Data Structures, Machine Learning, Web Development, Cybersecurity.\n"
+                    "5. Focus on knowledge areas, not just tools or technical skills.\n"
+                    "6. Exclude non-technical languages.\n"
+                    "7. Remove duplicates and keep the most specific term.\n"
+                    "8. If multiple knowledge areas are mentioned together, create separate entries.\n"
+                    "9. DO NOT include explanations, markdown, or code blocks.\n\n"
+                    "EXAMPLE OUTPUT:\n"
+                    "{\"Algorithms\": \"Intermediate\", \"Machine Learning\": \"Advanced\", \"Database Systems\": \"Intermediate\"}"
                 )
-                
+
                 print(f"Processing job {idx} with OpenAI...")
                 
                 # Get job description summary
-                job_desc = call_openai(summary_prompt, max_tokens=800)
-                
-                # Extract skills with retry logic
+                job_desc = call_openai(summary_prompt, max_tokens=400)
+                print(f"Job description summary: {job_desc}")
+
+                # Extract skills
                 try:
                     skills_response = call_openai(skills_prompt, max_tokens=300)
                     print(f"Raw skills response: {skills_response}")
-                    required_skills = [skill.strip() for skill in skills_response.split(',') if skill.strip()]
+                    
+                    skills_data = parse_json_response(skills_response, "skills")
+                    required_skills = skills_data
+                    print(f"Parsed skills: {required_skills}")
+                    
                 except Exception as skills_error:
                     print(f"Skills extraction failed for job {idx}: {skills_error}")
                     required_skills = ["Error extracting skills"]
-                
-                # Extract knowledge with retry logic
+
+                # Extract knowledge
                 try:
                     knowledge_response = call_openai(knowledge_prompt, max_tokens=300)
                     print(f"Raw knowledge response: {knowledge_response}")
-                    required_knowledge = [knowledge.strip() for knowledge in knowledge_response.split(',') if knowledge.strip()]
+                    
+                    knowledge_data = parse_json_response(knowledge_response, "knowledge")
+                    required_knowledge = knowledge_data
+                    print(f"Parsed knowledge: {required_knowledge}")
+                    
                 except Exception as knowledge_error:
                     print(f"Knowledge extraction failed for job {idx}: {knowledge_error}")
                     required_knowledge = ["Error extracting knowledge"]
-                
-                # Debug prints after extraction
-                print(f"Extracted skills for job {idx}: {required_skills}")
-                print(f"Extracted knowledge for job {idx}: {required_knowledge}")
-                
+
             except Exception as e:
                 print(f"OpenAI error for job index {idx}: {e}")
-                # fallback to original
-                job_desc = job.get("Full Job Description", "N/A")
+                # fallback to original description
+                job_desc = original_job_desc
                 required_skills = ["Failed to extract skills"]
                 required_knowledge = ["Failed to extract knowledge"]
         else:
-            # If not using OpenAI summary, still try to extract basic info
-            job_desc = job.get("Full Job Description", "N/A")
-            required_skills = ["Enable OpenAI extraction for detailed skills"]
-            required_knowledge = ["Enable OpenAI extraction for detailed knowledge"]
+            # If not using OpenAI summary
+            job_desc = original_job_desc
+            if use_openai_summary:
+                required_skills = ["OpenAI extraction disabled"]
+                required_knowledge = ["OpenAI extraction disabled"]
+            else:
+                required_skills = ["Enable OpenAI extraction for detailed skills"]
+                required_knowledge = ["Enable OpenAI extraction for detailed knowledge"]
 
         top_matches.append(
             {

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:code_map/screens/results/skill_gap_analysis.dart';
 import 'package:flutter/material.dart';
 import '../../models/user_profile_match.dart';
@@ -68,12 +70,49 @@ class _CareerRecommendationsScreenState
             print('Selected first job by default: Index $_selectedJobIndex');
           }
         });
+
+        // Precompute skill gap for all jobs
+        await _precomputeSkillGaps();
       }
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  // Request skill gap analysis for all jobs
+  Future<void> _precomputeSkillGaps() async {
+    if (_profileMatch == null) return;
+
+    try {
+      final allGaps = await ApiService.getGapAnalysis(
+        userTestId: widget.userTestId,
+      );
+
+      // Map gaps by jobIndex for easy lookup
+      final Map<int, Map<String, dynamic>> gapsByJob = {};
+      for (var gapEntry in allGaps) {
+        final int jobIndex = gapEntry["job_index"];
+        gapsByJob[jobIndex] = gapEntry["gap_analysis"];
+      }
+
+      // Assign skills/knowledge to each job in _profileMatch
+      setState(() {
+        for (var job in _profileMatch!.topMatches) {
+          final gap = gapsByJob[job.jobIndex];
+          if (gap != null) {
+            job.requiredSkills = Map<String, dynamic>.from(gap["skills"] ?? {});
+            job.requiredKnowledge =
+                Map<String, dynamic>.from(gap["knowledge"] ?? {});
+          }
+        }
+      });
+
+      print('Skill gaps computed for all jobs!');
+    } catch (e) {
+      print('Error computing skill gaps: $e');
     }
   }
 
@@ -243,15 +282,9 @@ class _CareerRecommendationsScreenState
     );
   }
 
-  // Build skills card for the SELECTED career
+// Skills card
   Widget _buildSkillsCard(JobMatch job) {
-    print('TRYING to build skills card for: ${job.jobTitle}');
-    print('Skills available: ${job.requiredSkills}');
-    if (job.requiredSkills.isEmpty) {
-      print('SKILLS CARD: No skills to display');
-      return const SizedBox.shrink();
-    }
-    print('SKILLS CARD: Building with ${job.requiredSkills.length} skills');
+    if (job.requiredSkills.isEmpty) return const SizedBox.shrink();
 
     return Card(
       elevation: 2,
@@ -262,26 +295,17 @@ class _CareerRecommendationsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
-                Icon(Icons.build, size: 20, color: Colors.blue),
-                SizedBox(width: 8),
-                Text(
-                  "Key Skills Required",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
+            const Text(
+              "Required Skills:",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: job.requiredSkills.map((skill) {
+              children: job.requiredSkills.keys.map((skill) {
                 return Chip(
-                  label: Text(
-                    skill,
-                    style: const TextStyle(fontSize: 12),
-                  ),
+                  label: Text(skill),
                   backgroundColor: Colors.blue[50],
                   visualDensity: VisualDensity.compact,
                 );
@@ -293,16 +317,9 @@ class _CareerRecommendationsScreenState
     );
   }
 
-  // Build knowledge card for the SELECTED career
+// Knowledge card
   Widget _buildKnowledgeCard(JobMatch job) {
-    print('TRYING to build knowledge card for: ${job.jobTitle}');
-    print('Knowledge available: ${job.requiredKnowledge}');
-    if (job.requiredKnowledge.isEmpty) {
-      print('KNOWLEDGE CARD: No knowledge to display');
-      return const SizedBox.shrink();
-    }
-    print(
-        'KNOWLEDGE CARD: Building with ${job.requiredKnowledge.length} items');
+    if (job.requiredKnowledge.isEmpty) return const SizedBox.shrink();
 
     return Card(
       elevation: 2,
@@ -313,26 +330,17 @@ class _CareerRecommendationsScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
-              children: [
-                Icon(Icons.school, size: 20, color: Colors.green),
-                SizedBox(width: 8),
-                Text(
-                  "Key Knowledge Required",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ],
+            const Text(
+              "Required Knowledge:",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: job.requiredKnowledge.map((knowledge) {
+              children: job.requiredKnowledge.keys.map((knowledge) {
                 return Chip(
-                  label: Text(
-                    knowledge,
-                    style: const TextStyle(fontSize: 12),
-                  ),
+                  label: Text(knowledge),
                   backgroundColor: Colors.green[50],
                   visualDensity: VisualDensity.compact,
                 );
@@ -521,18 +529,25 @@ class _CareerRecommendationsScreenState
                           width: double.infinity,
                           child: ElevatedButton(
                             onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => SkillGapAnalysis(
-                                    jobMatch:
-                                        _profileMatch!.topMatches.firstWhere(
-                                      (job) =>
-                                          job.jobIndex == _selectedJobIndex,
+                              if (_selectedJobIndex != null &&
+                                  _profileMatch != null) {
+                                // Find the selected job
+                                final selectedJob =
+                                    _profileMatch!.topMatches.firstWhere(
+                                  (job) => job.jobIndex == _selectedJobIndex,
+                                );
+
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => SkillGapAnalysis(
+                                      userTestId: widget.userTestId,
+                                      selectedJobId:
+                                          selectedJob.jobIndex, // <-- Now valid
                                     ),
                                   ),
-                                ),
-                              );
+                                );
+                              }
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Theme.of(context).primaryColor,
@@ -552,6 +567,7 @@ class _CareerRecommendationsScreenState
                           ),
                         ),
                       ),
+
                       const SizedBox(height: 24),
                     ],
                   ),

@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from core.database import SessionLocal, get_db
-from models.assessment import UserTest, GeneratedQuestion, FollowUpAnswers, CareerRecommendation, CareerJobMatch, UserSkillsKnowledge
+from models.assessment import UserTest, GeneratedQuestion, FollowUpAnswers, CareerRecommendation, CareerJobMatch, UserSkillsKnowledge  # Add this line
 from schemas.assessment import (
     UserResponses,
     SkillReflectionRequest,
@@ -12,6 +12,7 @@ from schemas.assessment import (
 )
 from services.openai_service import generate_questions
 from services.embedding_service import create_user_embedding, match_user_to_job, analyze_user_skills_knowledge
+from services.skill_gap_analysis_service import compute_skill_gaps_for_all_jobs
 import json
 
 router = APIRouter()
@@ -167,7 +168,6 @@ def user_profile_match(request: SkillReflectionRequest, db: Session = Depends(ge
         skills_knowledge_result = analyze_user_skills_knowledge(user_test_id)
         if "error" in skills_knowledge_result:
             print(f"[ERROR] Skills/Knowledge analysis failed: {skills_knowledge_result['error']}")
-            # You might want to return this error or handle it differently
         else:
             print(f"[INFO] Skills/Knowledge saved for user_test_id {user_test_id}")
             print(f"Extracted skills: {skills_knowledge_result.get('skills', [])}")
@@ -221,3 +221,15 @@ def user_profile_match(request: SkillReflectionRequest, db: Session = Depends(ge
         top_matches=top_matches_list
     )
 
+# -----------------------------
+# Skill & Knowledge Gap Analysis for All Jobs
+# -----------------------------
+@router.post("/gap-analysis/all/{user_test_id}")
+def run_gap_analysis_all(user_test_id: int, db: Session = Depends(get_db)):
+    """
+    Run skill/knowledge gap analysis for all jobs for a given user_test_id.
+    Saves the results in DB and returns a list of comparison JSONs.
+    """
+
+    results = compute_skill_gaps_for_all_jobs(user_test_id, db)
+    return results

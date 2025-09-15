@@ -44,7 +44,7 @@ def strip_json_codeblock(text: str) -> str:
 
 
 def generate_questions(user_input: str):
-    # 1. Extract topics
+    # Extract topics
     topics = call_openai(
         f"""Extract all **coding-related** topics, skills, languages, libraries, and frameworks from this statement:
         '{user_input}'.
@@ -52,38 +52,62 @@ def generate_questions(user_input: str):
     )
     print("\n[DEBUG] Extracted topics:", topics)
 
-    # 2. Extract primary programming language
-    language_for_scaffold = call_openai(
-        f"""From the following list of topics: '{topics}', extract the name of the primary **programming language** mentioned.
-        If none is found, return exactly 'None'."""
+    # Extract all programming languages
+    all_languages_text = call_openai(
+        f"""From the following list of topics: '{topics}', extract all programming languages mentioned.
+        Return a comma-separated list. If none are found, return 'None'."""
     )
-    print("[DEBUG] Extracted primary language:", language_for_scaffold)
-
-    # 3. Generate coding questions if applicable
+    
+    if all_languages_text.strip().lower() == "none":
+        language_list = []
+    else:
+        language_list = [lang.strip() for lang in all_languages_text.split(",")]
+    
+    print("[DEBUG] Extracted languages:", language_list)
+    
+    # Generate exactly 5 coding questions distributed across languages
     coding_questions = []
-    if language_for_scaffold.lower() != "none":
-        coding_questions_text = call_openai(
-            f"""Generate exactly 5 coding problems based on: '{topics}'.
-            - Must cover all programming languages extracted.
-            - Include a short code snippet in '{language_for_scaffold}' (≤30 lines).
-            - Then write a question about that snippet.
-            - The question text must contain **both the code snippet and the actual question about the snippet** in the same "question" field.
-            - Difficulty ratio: 1 Easy, 1 Medium, 3 Hard.
-            - Format each question as code (triple backticks) + text.
-            - Only self-contained examples, no APIs or external files.
-            - Use formal academic language appropriate for undergraduate or graduate students.
-            - Do NOT include answers.
-            - Return questions as JSON list, each object with:
-              {{"question": "<code snippet embedded in question> followed by the question text", "difficulty": "Easy/Medium/Hard", "category": "Coding"}}"""
-        )
-        # Robust parsing: remove empty items
-        coding_questions = [
-            q.strip()
-            for q in coding_questions_text.replace("\n", "||").split("||")
-            if q.strip()
-        ]
+    total_questions = 5
+    
+    if language_list:
+        # Determine distribution per language
+        num_languages = len(language_list)
+        base_count = total_questions // num_languages
+        remainder = total_questions % num_languages
 
-    # 4. Generate non-coding questions
+        questions_per_language = {lang: base_count for lang in language_list}
+
+        # Distribute remainder
+        for i in range(remainder):
+            questions_per_language[language_list[i]] += 1
+
+        # Generate questions per language
+        for lang, count in questions_per_language.items():
+            if count == 0:
+                continue
+            coding_questions_text = call_openai(
+                f"""Generate exactly {count} coding problems based on: '{topics}'.
+                - Include a short code snippet in '{lang}' (≤30 lines).
+                - Then write a question about that snippet.
+                - The question text must contain **both the code snippet and the actual question about the snippet** in the same "question" field.
+                - Difficulty ratio: 1 Easy, 1 Medium, 3 Hard (if {count} >=5, otherwise distribute proportionally).
+                - Format each question as code (triple backticks) + text.
+                - Only self-contained examples, no APIs or external files.
+                - Use formal academic language appropriate for undergraduate or graduate students.
+                - Do NOT include answers.
+                - Return questions as JSON list, each object with:
+                {{"question": "<code snippet embedded in question> followed by the question text", "difficulty": "Easy/Medium/Hard", "category": "Coding"}}"""
+            )
+            # Parse robustly
+            cleaned_text = strip_json_codeblock(coding_questions_text)
+            try:
+                coding_temp = json.loads(cleaned_text)
+                if isinstance(coding_questions, list):
+                    coding_questions.extend(coding_temp)
+            except json.JSONDecodeError as e:
+                print(f"[ERROR] Failed to parse coding questions for {lang}:", e)
+    
+    # Generate non-coding questions
     non_coding_questions_text = call_openai(
         f"""Generate exactly 10 non-coding conceptual questions based on: '{topics}'.
         - No coding required.
@@ -101,7 +125,7 @@ def generate_questions(user_input: str):
         if q.strip()
     ]
 
-    # 5. Convert coding questions to MCQs
+    # Convert coding questions to MCQs
     coding_mcqs = []
     if coding_questions:
         coding_mcqs_text = call_openai(
@@ -130,7 +154,7 @@ def generate_questions(user_input: str):
             print("[ERROR] Failed to parse coding MCQs JSON:", e)
             coding_mcqs = []
 
-    # 6. Convert non-coding questions to MCQs
+    # Convert non-coding questions to MCQs
     non_coding_mcqs = []
     if non_coding_questions:
         non_coding_mcqs_text = call_openai(
@@ -159,13 +183,11 @@ def generate_questions(user_input: str):
             print("[ERROR] Failed to parse non-coding MCQs JSON:", e)
             non_coding_mcqs = []
 
-    # 7. Merge all questions and assign unique IDs
+    # Merge all questions and assign unique IDs
     all_questions = coding_mcqs + non_coding_mcqs
 
     print("[DEBUG] Total questions generated:", len(all_questions))
-    # 8. Return final data
+ 
     return {
-        "topics": topics,
-        "primary_language": language_for_scaffold,
         "questions": all_questions,
     }

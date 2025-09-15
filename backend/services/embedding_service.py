@@ -263,9 +263,9 @@ def analyze_user_skills_knowledge(user_test_id: int) -> Dict[str, Any]:
 
     TASK:
     - Extract all TECHNICAL SKILLS from the user's skillReflection and follow-up answers.
-    - Assign a SKILL LEVEL for each: Beginner, Intermediate, or Expert.
+    - Assign a SKILL LEVEL for each: Basic, Intermediate, or Advanced.
     - Extract all KNOWLEDGE AREAS (subject domains, concepts, methodologies) from the user's courseworkExperience and follow-up answers.
-    - Assign a KNOWLEDGE LEVEL for each: Beginner, Intermediate, or Expert.
+    - Assign a KNOWLEDGE LEVEL for each: Basic, Intermediate, or Advanced.
     - Be as specific as possible: if a skill or knowledge area is mentioned in context (e.g., 'Python with Django'), include both Python and Django separately.
     - Include all skills and knowledge mentioned across answers, even if implied.
 

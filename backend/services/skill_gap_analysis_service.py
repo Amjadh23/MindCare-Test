@@ -2,12 +2,8 @@ from sqlalchemy.orm import Session
 from models.assessment import UserSkillsKnowledge, CareerJobMatch, UserJobSkillMatch
 
 # Define level ranking for comparison
-LEVEL_ORDER = {
-    "Not Provided": 0,
-    "Weak": 1,
-    "Intermediate": 2,
-    "Advanced": 3
-}
+LEVEL_ORDER = {"Not Provided": 0, "Basic": 1, "Intermediate": 2, "Advanced": 3}
+
 
 def compute_skill_gaps_for_all_jobs(user_test_id: int, db: Session):
     """
@@ -22,14 +18,19 @@ def compute_skill_gaps_for_all_jobs(user_test_id: int, db: Session):
 
     # Loop through each job and compute skill gap
     for job in all_jobs:
-        result = compare_and_save(user_test_id=user_test_id, job_match_id=job.job_index, db=db)
-        results.append({
-            "job_index": job.job_index,
-            "job_title": job.job_title,
-            "gap_analysis": result
-        })
+        result = compare_and_save(
+            user_test_id=user_test_id, job_match_id=job.job_index, db=db
+        )
+        results.append(
+            {
+                "job_index": job.job_index,
+                "job_title": job.job_title,
+                "gap_analysis": result,
+            }
+        )
 
     return results
+
 
 def compare_and_save(user_test_id: int, job_match_id: int, db: Session):
     """
@@ -37,7 +38,9 @@ def compare_and_save(user_test_id: int, job_match_id: int, db: Session):
     """
 
     # Fetch user data
-    user_data = db.query(UserSkillsKnowledge).filter_by(user_test_id=user_test_id).first()
+    user_data = (
+        db.query(UserSkillsKnowledge).filter_by(user_test_id=user_test_id).first()
+    )
     if not user_data:
         return {"error": f"No user skills/knowledge for user_test_id={user_test_id}"}
 
@@ -68,11 +71,11 @@ def compare_and_save(user_test_id: int, job_match_id: int, db: Session):
             status = "Achieved"
         else:
             status = "Weak"  # user provided, but below requirement
-            
+
         result["skills"][skill] = {
             "required_level": req_level,
             "user_level": user_level,
-            "status": status
+            "status": status,
         }
 
     # --- Knowledge
@@ -85,13 +88,12 @@ def compare_and_save(user_test_id: int, job_match_id: int, db: Session):
             status = "Achieved"
         else:
             status = "Weak"
-        
+
         result["knowledge"][knowledge] = {
             "required_level": req_level,
             "user_level": user_level,
-            "status": status
+            "status": status,
         }
-
 
     # Save to DB (insert or update)
     existing = (
@@ -108,12 +110,12 @@ def compare_and_save(user_test_id: int, job_match_id: int, db: Session):
             user_test_id=user_test_id,
             job_match_id=job_match_id,
             skill_status=result["skills"],
-            knowledge_status=result["knowledge"]
+            knowledge_status=result["knowledge"],
         )
         db.add(entry)
 
     db.commit()
-    
+
     result["job_title"] = job_data.job_title
 
     return result

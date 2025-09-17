@@ -40,18 +40,19 @@ _model = None
 df = pd.DataFrame()
 job_embeddings = []
 
+
 def initialize_ai_models():
     """Initialize AI models and load job data - call this on server startup"""
     global _tokenizer, _model, df, job_embeddings
-    
+
     print("Initializing AI models...")
-    
+
     # Load HF model
     hf_model_name = "sentence-transformers/all-MiniLM-L6-v2"
     _tokenizer = AutoTokenizer.from_pretrained(hf_model_name)
     _model = AutoModel.from_pretrained(hf_model_name)
     print("✓ HuggingFace model loaded")
-    
+
     # Load job data
     folder_path = "data"
     csv_files = glob.glob(f"{folder_path}/*.csv")
@@ -69,13 +70,13 @@ def initialize_ai_models():
     if dfs:
         df = pd.concat(dfs, ignore_index=True)
         print(f"✓ Loaded {len(df)} job records")
-        
+
         # Try to load pre-generated embeddings
         embeddings_file = os.path.join(folder_path, "job_embeddings.pkl")
         if os.path.exists(embeddings_file):
             print("Loading pre-generated embeddings...")
             try:
-                with open(embeddings_file, 'rb') as f:
+                with open(embeddings_file, "rb") as f:
                     job_embeddings = pickle.load(f)
                 print(f"✓ Loaded {len(job_embeddings)} pre-generated embeddings")
             except Exception as e:
@@ -87,34 +88,36 @@ def initialize_ai_models():
     else:
         print("No valid data found in CSV files.")
         df = pd.DataFrame()
-    
+
     print("✓ Server startup complete - Ready for requests!")
+
 
 def _generate_and_save_embeddings(df, embeddings_file):
     """Generate embeddings and save to file"""
     print("Generating embeddings for all job descriptions...")
     print("This will take a while (5-15 minutes)...")
-    
+
     job_descriptions = df["Full Job Description"].astype(str)
-    
+
     # Show progress
     total = len(job_descriptions)
     embeddings = []
-    
+
     for i, job_desc in enumerate(job_descriptions):
         if i % 100 == 0:  # Print progress every 100 jobs
             print(f"Processing {i}/{total} jobs...")
         embeddings.append(get_embeddings(job_desc))
-    
+
     # Save to file
     try:
-        with open(embeddings_file, 'wb') as f:
+        with open(embeddings_file, "wb") as f:
             pickle.dump(embeddings, f)
         print(f"✓ Saved {len(embeddings)} embeddings to {embeddings_file}")
     except Exception as e:
         print(f"Error saving embeddings: {e}")
-    
+
     return embeddings
+
 
 # -----------------------------
 # Helper function to check if models are loaded
@@ -123,6 +126,7 @@ def _ensure_models_loaded():
     """Ensure models are loaded before using them"""
     if _tokenizer is None or _model is None:
         raise Exception("AI models not initialized. Call initialize_ai_models() first.")
+
 
 # -----------------------------
 # HF encoder for embeddings
@@ -133,13 +137,14 @@ def get_embeddings(text: str):
     Returns a Python list (JSON-serializable).
     """
     _ensure_models_loaded()
-    
+
     inputs = _tokenizer(text, return_tensors="pt", truncation=True, padding=True)
     with torch.no_grad():
         outputs = _model(**inputs)
     # Simple mean pooling
     emb = outputs.last_hidden_state.mean(dim=1)  # [1, hidden]
     return emb.squeeze(0).cpu().numpy().tolist()
+
 
 # -----------------------------
 # OpenAI call function
@@ -165,11 +170,13 @@ def call_openai(prompt: str, max_tokens=2000, temperature=0.2) -> str:
     )
     return resp.choices[0].message.content.strip()
 
+
 def normalize_option(opt: str) -> str:
     if not opt:
         return ""
-    match = re.match(r'([A-Z])', opt.strip().upper())
+    match = re.match(r"([A-Z])", opt.strip().upper())
     return match.group(1) if match else opt.strip().upper()
+
 
 # -----------------------------
 # Data aggregation for a user
@@ -182,9 +189,7 @@ def get_user_embedding_data(user_test_id: int) -> Dict[str, Any]:
     db: Session = SessionLocal()
     try:
         # 1) Fetch user responses (ORM model)
-        user_res = (
-            db.query(UserTest).filter(UserTest.id == user_test_id).first()
-        )
+        user_res = db.query(UserTest).filter(UserTest.id == user_test_id).first()
         if not user_res:
             return {"error": f"No user responses found for user_test_id {user_test_id}"}
 
@@ -203,20 +208,25 @@ def get_user_embedding_data(user_test_id: int) -> Dict[str, Any]:
                 .filter(GeneratedQuestion.id == f.question_id)
                 .first()
             )
-            
+
             # Compare user's selected answer with correct answer from database
             is_correct = bool(
-               correct_q and 
-               normalize_option(correct_q.answer) == normalize_option(f.selected_option)
+                correct_q
+                and normalize_option(correct_q.answer)
+                == normalize_option(f.selected_option)
             )
-  
+
             results.append(
                 {
-                    "question_id": f.question_id,               # from FollowUpAnswers
-                    "question_text": correct_q.question_text if correct_q else None,  # from GeneratedQuestion
-                    "selected_option": f.selected_option,       # from FollowUpAnswers
-                    "correct_answer": correct_q.answer if correct_q else None,  # from GeneratedQuestion
-                    "is_correct": is_correct,                   # computed by comparing selected vs answer
+                    "question_id": f.question_id,  # from FollowUpAnswers
+                    "question_text": (
+                        correct_q.question_text if correct_q else None
+                    ),  # from GeneratedQuestion
+                    "selected_option": f.selected_option,  # from FollowUpAnswers
+                    "correct_answer": (
+                        correct_q.answer if correct_q else None
+                    ),  # from GeneratedQuestion
+                    "is_correct": is_correct,  # computed by comparing selected vs answer
                 }
             )
 
@@ -241,11 +251,12 @@ def get_user_embedding_data(user_test_id: int) -> Dict[str, Any]:
                 "skillReflection": getattr(user_res, "skillReflection", None),
             },
             "follow_up_results": results,
-            "score": score_result["score_percentage"], # Extract the numeric score
+            "score": score_result["score_percentage"],  # Extract the numeric score
         }
         return combined_data
     finally:
         db.close()
+
 
 # -----------------------------
 # Analyze user skills & knowledge
@@ -276,8 +287,8 @@ def analyze_user_skills_knowledge(user_test_id: int) -> Dict[str, Any]:
     - Do NOT include explanations, comments, or markdown code blocks.
     - Example:
     {{
-        "skills": {{"Python": "Intermediate", "Communication": "Beginner"}},
-        "knowledge": {{"Algorithms": "Beginner", "Database Systems": "Expert"}}
+        "skills": {{"Python": "Basic", "Communication": "Intermediate"}},
+        "knowledge": {{"Algorithms": "Basic", "Database Systems": "Basic"}}
     }}
     - DO NOT use markdown code blocks
     """
@@ -287,11 +298,11 @@ def analyze_user_skills_knowledge(user_test_id: int) -> Dict[str, Any]:
         cleaned_response = response.strip()
 
         # Remove code block markers if present
-        if cleaned_response.startswith('```json'):
+        if cleaned_response.startswith("```json"):
             cleaned_response = cleaned_response[7:]
-        elif cleaned_response.startswith('```'):
+        elif cleaned_response.startswith("```"):
             cleaned_response = cleaned_response[3:]
-        if cleaned_response.endswith('```'):
+        if cleaned_response.endswith("```"):
             cleaned_response = cleaned_response[:-3]
         cleaned_response = cleaned_response.strip()
 
@@ -305,9 +316,11 @@ def analyze_user_skills_knowledge(user_test_id: int) -> Dict[str, Any]:
         # Save to DB
         db = SessionLocal()
         try:
-            existing_entry = db.query(UserSkillsKnowledge).filter(
-                UserSkillsKnowledge.user_test_id == user_test_id
-            ).first()
+            existing_entry = (
+                db.query(UserSkillsKnowledge)
+                .filter(UserSkillsKnowledge.user_test_id == user_test_id)
+                .first()
+            )
 
             if existing_entry:
                 existing_entry.skills = skills_dict
@@ -323,7 +336,9 @@ def analyze_user_skills_knowledge(user_test_id: int) -> Dict[str, Any]:
                 print(f"Created new entry for user_test_id {user_test_id}")
 
             db.commit()
-            print(f"Successfully saved skills/knowledge for user_test_id {user_test_id}")
+            print(
+                f"Successfully saved skills/knowledge for user_test_id {user_test_id}"
+            )
             return {"skills": skills_dict, "knowledge": knowledge_dict}
 
         except Exception as db_error:
@@ -337,7 +352,8 @@ def analyze_user_skills_knowledge(user_test_id: int) -> Dict[str, Any]:
         error_msg = f"Failed to analyze skills/knowledge: {str(e)}. Response: {cleaned_response if 'cleaned_response' in locals() else 'No response'}"
         print(error_msg)
         return {"error": error_msg}
-    
+
+
 # -----------------------------
 # Profile generation via OpenAI
 # -----------------------------
@@ -361,6 +377,7 @@ def _build_profile_prompt(combined_data: Dict[str, Any]) -> str:
         "5. Example format: 'Strong in Java and Python; Experienced with ML frameworks; Excellent communication skills;'\n"
         "6. Ensure the response can be easily parsed by splitting on semicolons"
     )
+
 
 def generate_user_profile_text(combined_data: Dict[str, Any]) -> str:
     prompt = _build_profile_prompt(combined_data)
@@ -390,12 +407,13 @@ def create_user_embedding(user_test_id: int) -> Dict[str, Any]:
         "combined_data": combined_data,  # included for debugging/inspection
     }
 
+
 # -----------------------------
-# Match user to job 
+# Match user to job
 # -----------------------------
 def match_user_to_job(
     user_test_id: int,
-    user_embedding: List[float], 
+    user_embedding: List[float],
     use_openai_summary: bool = True,
 ) -> Dict[str, Any]:
     """
@@ -417,7 +435,7 @@ def match_user_to_job(
 
     # Get indices of top 3 jobs (sorted by similarity score)
     top_n = min(3, len(similarities))
-    
+
     # Get sorted indices
     sorted_indices = np.argsort(similarities)[::-1]  # highest first
 
@@ -431,10 +449,10 @@ def match_user_to_job(
             unique_indices.append(idx)
         if len(unique_indices) >= top_n:
             break
-    
+
     # Use unique_indices (deduplicated & limited to top_n)
     top_matches = []
-    
+
     def clean_openai_json(raw_text: str) -> str:
         """Remove code blocks or extra whitespace from OpenAI response"""
         text = raw_text.strip()
@@ -445,29 +463,29 @@ def match_user_to_job(
         if text.endswith("```"):
             text = text[:-3]
         return text.strip()
-    
+
     def parse_json_response(response_text: str, response_type: str) -> Dict[str, str]:
         """Safely parse JSON response from OpenAI with error handling"""
         try:
             cleaned_text = clean_openai_json(response_text)
             print(f"Cleaned {response_type} response: {cleaned_text}")
-            
+
             # Try to parse as JSON
             parsed_data = json.loads(cleaned_text)
-            
+
             # Validate it's a dictionary
             if not isinstance(parsed_data, dict):
                 print(f"Warning: {response_type} response is not a dictionary")
                 return {}
-                
+
             return parsed_data
-            
+
         except json.JSONDecodeError as e:
             print(f"JSON decode error for {response_type}: {e}")
             print(f"Raw response: {response_text}")
-            
+
             # Try to extract JSON from malformed response
-            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            json_match = re.search(r"\{.*\}", response_text, re.DOTALL)
             if json_match:
                 try:
                     extracted_json = json_match.group(0)
@@ -476,23 +494,23 @@ def match_user_to_job(
                         return parsed_data
                 except:
                     pass
-                    
+
             return {}
         except Exception as e:
             print(f"Unexpected error parsing {response_type}: {e}")
             return {}
-    
+
     for idx in unique_indices:
         job = df.iloc[idx]
         similarity_score = float(similarities[idx])
         similarity_percentage = round(similarity_score * 100, 2)
         original_job_desc = job.get("Full Job Description", "N/A")
-        
+
         # Initialize variables
         job_desc = original_job_desc
         required_skills = []
         required_knowledge = []
-        
+
         # Generate cleaned/comprehensive description using OpenAI
         if use_openai_summary and original_job_desc != "N/A":
             try:
@@ -506,7 +524,7 @@ def match_user_to_job(
                     f"JOB DESCRIPTION TEXT:\n{original_job_desc}\n\n"
                     "Return only the cleaned-up job description without any additional text."
                 )
-                
+
                 skills_prompt = (
                     "ANALYZE THIS JOB DESCRIPTION AND EXTRACT ALL REQUIRED SKILLS WITH PROFICIENCY LEVELS:\n\n"
                     f"{original_job_desc}\n\n"
@@ -517,7 +535,7 @@ def match_user_to_job(
                     "EXTRACTION RULES:\n"
                     "1. Extract ONLY technical skills: programming languages, frameworks, libraries, tools, software, and platforms.\n"
                     "2. Assign a proficiency level for each skill: Basic, Intermediate, or Advanced.\n"
-                    "3. Respond STRICTLY in JSON format as a dictionary: {\"Skill Name\": \"Level\", ...} without any additional text.\n"
+                    '3. Respond STRICTLY in JSON format as a dictionary: {"Skill Name": "Level", ...} without any additional text.\n'
                     "4. Be as specific as possible: if 'Python with Django' is mentioned, include 'Python' and 'Django' as separate entries.\n"
                     "5. Exclude soft skills and natural languages.\n"
                     "6. Include skills mentioned in requirements, qualifications, or responsibilities sections.\n"
@@ -525,7 +543,7 @@ def match_user_to_job(
                     "8. If multiple skills are mentioned together, create separate entries for each.\n"
                     "9. DO NOT include explanations, markdown, or code blocks.\n\n"
                     "EXAMPLE OUTPUT:\n"
-                    "{\"Python\": \"Advanced\", \"Django\": \"Intermediate\", \"SQL\": \"Intermediate\"}"
+                    '{"Python": "Advanced", "Django": "Intermediate", "SQL": "Intermediate"}'
                 )
 
                 knowledge_prompt = (
@@ -537,18 +555,18 @@ def match_user_to_job(
                     "EXTRACTION RULES:\n"
                     "1. Extract ONLY knowledge domains, concepts, methodologies, and specialized areas.\n"
                     "2. Assign a proficiency level for each: Basic, Intermediate, or Advanced.\n"
-                    "3. Respond STRICTLY in JSON format as a dictionary: {\"Knowledge Name\": \"Level\", ...}\n"
+                    '3. Respond STRICTLY in JSON format as a dictionary: {"Knowledge Name": "Level", ...}\n'
                     "4. Be as specific as possible: if 'Mathematics (Linear Algebra, Probability)' is mentioned, include 'Mathematics', 'Linear Algebra' and 'Probability' as separate entries.\n"
                     "5. Exclude soft skills and natural languages.\n"
                     "6. Remove duplicates and keep the most specific term.\n"
                     "7. If multiple knowledge areas are mentioned together, create separate entries.\n"
                     "8. DO NOT include explanations, markdown, or code blocks.\n\n"
                     "EXAMPLE OUTPUT:\n"
-                    "{\"Algorithms\": \"Intermediate\", \"Machine Learning\": \"Advanced\", \"Database Systems\": \"Intermediate\"}"
+                    '{"Algorithms": "Intermediate", "Machine Learning": "Advanced", "Database Systems": "Intermediate"}'
                 )
 
                 print(f"Processing job {idx} with OpenAI...")
-                
+
                 # Get job description summary
                 job_desc = call_openai(summary_prompt, max_tokens=400)
                 print(f"Job description summary: {job_desc}")
@@ -557,11 +575,11 @@ def match_user_to_job(
                 try:
                     skills_response = call_openai(skills_prompt, max_tokens=300)
                     print(f"Raw skills response: {skills_response}")
-                    
+
                     skills_data = parse_json_response(skills_response, "skills")
                     required_skills = skills_data
                     print(f"Parsed skills: {required_skills}")
-                    
+
                 except Exception as skills_error:
                     print(f"Skills extraction failed for job {idx}: {skills_error}")
                     required_skills = ["Error extracting skills"]
@@ -570,13 +588,17 @@ def match_user_to_job(
                 try:
                     knowledge_response = call_openai(knowledge_prompt, max_tokens=300)
                     print(f"Raw knowledge response: {knowledge_response}")
-                    
-                    knowledge_data = parse_json_response(knowledge_response, "knowledge")
+
+                    knowledge_data = parse_json_response(
+                        knowledge_response, "knowledge"
+                    )
                     required_knowledge = knowledge_data
                     print(f"Parsed knowledge: {required_knowledge}")
-                    
+
                 except Exception as knowledge_error:
-                    print(f"Knowledge extraction failed for job {idx}: {knowledge_error}")
+                    print(
+                        f"Knowledge extraction failed for job {idx}: {knowledge_error}"
+                    )
                     required_knowledge = ["Error extracting knowledge"]
 
             except Exception as e:
@@ -604,11 +626,12 @@ def match_user_to_job(
                 "job_title": job.get("Title", "N/A"),
                 "job_description": job_desc,
                 "required_skills": required_skills,
-                "required_knowledge": required_knowledge
+                "required_knowledge": required_knowledge,
             }
         )
-    
+
     return {"top_matches": top_matches}
+
 
 # -----------------------------
 # Check if everything is loaded
@@ -616,4 +639,3 @@ def match_user_to_job(
 def is_initialized() -> bool:
     """Check if AI models and data are loaded"""
     return _tokenizer is not None and _model is not None and not df.empty
-

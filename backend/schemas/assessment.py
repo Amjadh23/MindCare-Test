@@ -12,6 +12,7 @@ class UserResponses(BaseModel):
     programmingLanguages: List[str] = []
     courseworkExperience: Optional[str]
     skillReflection: Optional[str]
+    careerGoals: Optional[str]
 
 
 class SkillReflectionRequest(BaseModel):
@@ -41,7 +42,7 @@ class JobMatch(BaseModel):
     job_title: str
     job_description: str
     required_skills: Dict[str, str]
-    required_knowledge: Dict[str, str] 
+    required_knowledge: Dict[str, str]
 
 
 class UserProfileMatchResponse(BaseModel):

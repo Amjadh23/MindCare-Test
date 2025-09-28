@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from core.database import Base
 
+
 class UserTest(Base):
     __tablename__ = "user_test"
 
@@ -13,10 +14,15 @@ class UserTest(Base):
     programmingLanguages = Column(String, nullable=True)
     courseworkExperience = Column(String, nullable=True)
     skillReflection = Column(Text, nullable=True)
-    
-    skills_knowledge = relationship("UserSkillsKnowledge", back_populates="user_test", uselist=False)
-    career_recommendations = relationship("CareerRecommendation", back_populates="user_test")
-    
+    careerGoals = Column(Text, nullable=True)
+
+    skills_knowledge = relationship(
+        "UserSkillsKnowledge", back_populates="user_test", uselist=False
+    )
+    career_recommendations = relationship(
+        "CareerRecommendation", back_populates="user_test"
+    )
+
 
 class GeneratedQuestion(Base):
     __tablename__ = "generated_questions"
@@ -28,7 +34,8 @@ class GeneratedQuestion(Base):
     answer = Column(String, nullable=True)
     difficulty = Column(String, nullable=True)
     question_type = Column(String, nullable=True)
-    
+
+
 class FollowUpAnswers(Base):
     __tablename__ = "follow_up_answers"
 
@@ -36,6 +43,7 @@ class FollowUpAnswers(Base):
     user_test_id = Column(Integer, ForeignKey("user_test.id"), nullable=False)
     question_id = Column(Integer, ForeignKey("generated_questions.id"), nullable=False)
     selected_option = Column(String, nullable=False)
+
 
 class CareerRecommendation(Base):
     __tablename__ = "career_recommendations"
@@ -46,6 +54,7 @@ class CareerRecommendation(Base):
 
     user_test = relationship("UserTest", back_populates="career_recommendations")
     job_matches = relationship("CareerJobMatch", back_populates="recommendation")
+
 
 class CareerJobMatch(Base):
     __tablename__ = "career_job_matches"
@@ -62,25 +71,26 @@ class CareerJobMatch(Base):
 
     recommendation = relationship("CareerRecommendation", back_populates="job_matches")
 
+
 class UserSkillsKnowledge(Base):
     __tablename__ = "user_skills_knowledge"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     user_test_id = Column(Integer, ForeignKey("user_test.id"), unique=True)
     skills = Column(JSON)
     knowledge = Column(JSON)
 
     user_test = relationship("UserTest", back_populates="skills_knowledge")
-    
+
+
 class UserJobSkillMatch(Base):
     __tablename__ = "user_job_skill_match"
 
     id = Column(Integer, primary_key=True, index=True)
     user_test_id = Column(Integer, ForeignKey("user_test.id"))
     job_match_id = Column(Integer, ForeignKey("career_job_matches.id"))
-    skill_status = Column(JSON)     # {"Python": "achieved", "SQL": "missing"}
-    knowledge_status = Column(JSON) # {"Databases": "achieved", "ML": "missing"}
+    skill_status = Column(JSON)  # {"Python": "achieved", "SQL": "missing"}
+    knowledge_status = Column(JSON)  # {"Databases": "achieved", "ML": "missing"}
 
     user_test = relationship("UserTest")
     job_match = relationship("CareerJobMatch")
-

@@ -249,6 +249,7 @@ def get_user_embedding_data(user_test_id: int) -> Dict[str, Any]:
                 "programmingLanguages": prog_langs,
                 "courseworkExperience": getattr(user_res, "courseworkExperience", None),
                 "skillReflection": getattr(user_res, "skillReflection", None),
+                "careerGoals": getattr(user_res, "careerGoals", None),
             },
             "follow_up_results": results,
             "score": score_result["score_percentage"],  # Extract the numeric score

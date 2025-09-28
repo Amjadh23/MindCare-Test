@@ -1,26 +1,24 @@
-import 'package:code_map/screens/skill_reflection_test/career_goals.dart';
 import 'package:flutter/material.dart';
 import '../../models/user_responses.dart';
 import '../follow_up_test/follow_up_screen.dart';
 
-class SkillReflectionTest extends StatefulWidget {
+class CareerGoals extends StatefulWidget {
   final UserResponses userResponse;
 
-  const SkillReflectionTest({super.key, required this.userResponse});
+  const CareerGoals({super.key, required this.userResponse});
 
   @override
-  State<SkillReflectionTest> createState() => _SkillReflectionTestState();
+  State<CareerGoals> createState() => _CareerGoalsState();
 }
 
-class _SkillReflectionTestState extends State<SkillReflectionTest> {
+class _CareerGoalsState extends State<CareerGoals> {
   late TextEditingController _controller;
   int _charCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _controller =
-        TextEditingController(text: widget.userResponse.skillReflection);
+    _controller = TextEditingController(text: widget.userResponse.careerGoals);
     _charCount = _controller.text.length;
 
     _controller.addListener(() {
@@ -41,29 +39,29 @@ class _SkillReflectionTestState extends State<SkillReflectionTest> {
     if (text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Skill reflection cannot be empty."),
+          content: Text("Career goals cannot be empty."),
           duration: Duration(seconds: 2),
         ),
       );
       return;
     }
 
-    if (_charCount < 500) {
+    if (_charCount < 100) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'Please write at least 500 characters. Current count: $_charCount'),
+              'Please write at least 200 characters. Current count: $_charCount'),
           duration: const Duration(seconds: 2),
         ),
       );
       return;
     }
-    widget.userResponse.skillReflection = _controller.text;
+    widget.userResponse.careerGoals = _controller.text;
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CareerGoals(userResponse: widget.userResponse),
+        builder: (context) => FollowUpScreen(userResponse: widget.userResponse),
       ),
     );
   }
@@ -71,14 +69,14 @@ class _SkillReflectionTestState extends State<SkillReflectionTest> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Skill Reflection")),
+      appBar: AppBar(title: const Text("Career Goals")),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text(
-              "What IT skills and strengths are you most proud of, and why?",
+              "What is your career goals?",
               style: TextStyle(fontSize: 18),
             ),
             const SizedBox(height: 20),
@@ -88,7 +86,7 @@ class _SkillReflectionTestState extends State<SkillReflectionTest> {
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   hintText:
-                      "In your own words, describe the skills you are most confident in. Mention any tools, programming languages, or technical concepts you are familiar with. You may also include soft skills, previous projects, or anything you believe showcases your strengths.",
+                      "In your own words, describe your career goals. Share the roles, industries, or specializations you aspire to. Mention long-term ambitions, short-term objectives, or the kind of impact you hope to create in your career.",
                   hintMaxLines: 10,
                 ),
                 minLines: 20,
@@ -96,8 +94,31 @@ class _SkillReflectionTestState extends State<SkillReflectionTest> {
               ),
             ),
             const SizedBox(height: 10),
-            Text('Character count: $_charCount/500',
-                textAlign: TextAlign.right),
+
+            // Character counter + progress bar
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  _charCount < 200
+                      ? '$_charCount characters entered (${200 - _charCount} more needed)'
+                      : '$_charCount characters entered (minimum met)',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: _charCount < 200 ? Colors.red : Colors.green,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                LinearProgressIndicator(
+                  value: (_charCount / 200).clamp(0, 1),
+                  backgroundColor: Colors.grey[300],
+                  color: _charCount < 200 ? Colors.red : Colors.green,
+                  minHeight: 6,
+                ),
+              ],
+            ),
+
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _onCompletePressed,

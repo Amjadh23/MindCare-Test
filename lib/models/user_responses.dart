@@ -5,6 +5,7 @@ class UserResponses {
   List<String> programmingLanguages;
   String courseworkExperience;
   String skillReflection;
+  String careerGoals;
 
   UserResponses({
     this.educationLevel = '',
@@ -13,6 +14,7 @@ class UserResponses {
     List<String>? programmingLanguages,
     this.courseworkExperience = '',
     this.skillReflection = '',
+    this.careerGoals = '',
     required Map<String, String> followUpAnswers,
   }) : programmingLanguages = programmingLanguages ?? [];
 
@@ -23,6 +25,7 @@ class UserResponses {
         "programmingLanguages": programmingLanguages,
         "courseworkExperience": courseworkExperience,
         "skillReflection": skillReflection,
+        "careerGoals": careerGoals,
       };
 }
 

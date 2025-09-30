@@ -26,14 +26,19 @@ class _FollowUpScreenState extends State<FollowUpScreen> {
 
   Future<void> _preWarmBackend() async {
     try {
-      // Try to wake up the backend quietly
-      await http.get(Uri.parse('${ApiService.baseUrl}/health')).timeout(
-            const Duration(seconds: 8),
-          );
-      setState(() => _isBackendReady = true);
-      print('Backend is ready!');
+      print("Checking backend health at: ${ApiService.baseUrl}/health");
+      final response = await http
+          .get(Uri.parse("${ApiService.baseUrl}/health"))
+          .timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 200) {
+        setState(() => _isBackendReady = true);
+        print("Backend is ready! Response: ${response.body}");
+      } else {
+        print("Backend responded but with status code: ${response.statusCode}");
+      }
     } catch (e) {
-      print('Backend not ready yet: $e');
+      print("Backend not ready yet: $e");
     }
   }
 
@@ -45,7 +50,7 @@ class _FollowUpScreenState extends State<FollowUpScreen> {
       _showWarning = false;
     });
 
-    // Show loading dialog with expected wait time
+    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -90,10 +95,8 @@ class _FollowUpScreenState extends State<FollowUpScreen> {
       print("Questions received: $questions");
 
       if (questions.isNotEmpty) {
-        // Mark backend as ready for next time
         setState(() => _isBackendReady = true);
 
-        // Navigate to FollowUpTest screen
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -108,10 +111,8 @@ class _FollowUpScreenState extends State<FollowUpScreen> {
         throw Exception("No questions were generated");
       }
     } catch (e) {
-      // Close loading dialog
       if (Navigator.canPop(context)) Navigator.pop(context);
 
-      // Show error to user
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Error: ${e.toString()}"),
@@ -119,7 +120,6 @@ class _FollowUpScreenState extends State<FollowUpScreen> {
         ),
       );
 
-      // Show warning that this might take longer
       setState(() => _showWarning = true);
     } finally {
       setState(() => _isLoading = false);
@@ -141,8 +141,6 @@ class _FollowUpScreenState extends State<FollowUpScreen> {
               ),
             ),
           ),
-
-          // Warning message (only shows after error)
           if (_showWarning)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
@@ -152,8 +150,6 @@ class _FollowUpScreenState extends State<FollowUpScreen> {
                 style: TextStyle(color: Colors.orange, fontSize: 14),
               ),
             ),
-
-          // Loading indicator or button
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: _isLoading

@@ -1,7 +1,7 @@
 class FollowUpResponse {
-  final int questionId;
+  final String questionId;
   String? selectedOption;
-  final int userTestId;
+  final String userTestId;
 
   FollowUpResponse({
     required this.questionId,

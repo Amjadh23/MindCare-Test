@@ -4,7 +4,7 @@ import 'screens/educational_background_test/educational_background_screen.dart';
 
 Future<void> main() async {
   // Load environment variables before the app starts
-  await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: 'assets/.env');
   runApp(const MyApp());
 }
 

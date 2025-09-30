@@ -7,20 +7,19 @@ from typing import Any, Dict, List
 from dotenv import load_dotenv
 import openai
 import pandas as pd
-from sqlalchemy.orm import Session
 import torch
 from transformers import AutoTokenizer, AutoModel
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-
-from core.database import SessionLocal
-from models.assessment import (
-    FollowUpAnswers,
-    GeneratedQuestion,
-    UserTest,
-    UserSkillsKnowledge,
-)
+from core.database import db
+from schemas.assessment import UserResponses
 from services.scoring_service import calculate_score
+from models.firestore_models import (
+    get_user_test,
+    get_follow_up_answers_by_user,
+    get_generated_questions,
+    add_user_skills,
+)
 
 # -----------------------------
 # Env & OpenAI client
@@ -181,88 +180,87 @@ def normalize_option(opt: str) -> str:
 # -----------------------------
 # Data aggregation for a user
 # -----------------------------
-def get_user_embedding_data(user_test_id: int) -> Dict[str, Any]:
+def get_user_embedding_data(user_test_id: str) -> Dict[str, Any]:
     """
     Fetch user responses and follow-up results; compute score; build combined_data.
     score reflects how consistent/true the skillReflection is relative to follow-up answers.
     """
-    db: Session = SessionLocal()
+    # Fetch Firestore doc (dict)
+    doc_ref = db.collection("user_tests").document(user_test_id).get()
+    if not doc_ref.exists:
+        return {"error": f"No user responses found for {user_test_id}"}
+
+    doc = doc_ref.to_dict()
+
     try:
-        # 1) Fetch user responses (ORM model)
-        user_res = db.query(UserTest).filter(UserTest.id == user_test_id).first()
-        if not user_res:
-            return {"error": f"No user responses found for user_test_id {user_test_id}"}
+        # Convert dict → Pydantic model
+        user_res = UserResponses(**doc)
 
-        # 2) Fetch follow-up answers
-        follow_ups = (
-            db.query(FollowUpAnswers)
-            .filter(FollowUpAnswers.user_test_id == user_test_id)
-            .all()
-        )
+        # Fetch follow-up answers
+        follow_ups = get_follow_up_answers_by_user(user_test_id)
 
-        # 3) Build results for scoring
+        # Build results for scoring
         results: List[Dict[str, Any]] = []
         for f in follow_ups:
-            correct_q = (
-                db.query(GeneratedQuestion)
-                .filter(GeneratedQuestion.id == f.question_id)
-                .first()
-            )
+            # get_generated_questions now returns a list of dicts
+            correct_q_list = get_generated_questions(str(f["question_id"]))
+            correct_q_data = correct_q_list[0] if correct_q_list else None
 
-            # Compare user's selected answer with correct answer from database
             is_correct = bool(
-                correct_q
-                and normalize_option(correct_q.answer)
-                == normalize_option(f.selected_option)
+                correct_q_data
+                and normalize_option(correct_q_data.get("answer"))
+                == normalize_option(f["selected_option"])
             )
 
             results.append(
                 {
-                    "question_id": f.question_id,  # from FollowUpAnswers
+                    "question_id": f["question_id"],
                     "question_text": (
-                        correct_q.question_text if correct_q else None
-                    ),  # from GeneratedQuestion
-                    "selected_option": f.selected_option,  # from FollowUpAnswers
+                        correct_q_data.get("question_text") if correct_q_data else None
+                    ),
+                    "selected_option": f["selected_option"],
                     "correct_answer": (
-                        correct_q.answer if correct_q else None
-                    ),  # from GeneratedQuestion
-                    "is_correct": is_correct,  # computed by comparing selected vs answer
+                        correct_q_data.get("answer") if correct_q_data else None
+                    ),
+                    "is_correct": is_correct,
                 }
             )
 
-        # 4) Calculate score (how true the skill reflection is)
+        # Calculate score (how true the skill reflection is)
         score_result = calculate_score(results)
 
-        # 5) Normalize programmingLanguages to a list (in case stored as JSON/text)
+        # Normalize programmingLanguages to a list (in case stored as JSON/text)
         prog_langs = user_res.programmingLanguages
         if isinstance(prog_langs, str):
             # naive split fallback; replace with json.loads if you store JSON text
             prog_langs = [p.strip() for p in prog_langs.split(",") if p.strip()]
 
-        # 6) Build combined data for downstream AI analysis
+        # Build combined data
         combined_data = {
             "user_test_id": user_test_id,
             "user_responses": {
-                "educationLevel": getattr(user_res, "educationLevel", None),
-                "cgpa": getattr(user_res, "cgpa", None),
-                "major": getattr(user_res, "major", None),
+                "educationLevel": user_res.educationLevel,
+                "cgpa": user_res.cgpa,
+                "major": user_res.major,
                 "programmingLanguages": prog_langs,
-                "courseworkExperience": getattr(user_res, "courseworkExperience", None),
-                "skillReflection": getattr(user_res, "skillReflection", None),
-                "careerGoals": getattr(user_res, "careerGoals", None),
+                "courseworkExperience": user_res.courseworkExperience,
+                "skillReflection": user_res.skillReflection,
+                "careerGoals": user_res.careerGoals,
             },
             "follow_up_results": results,
-            "score": score_result["score_percentage"],  # Extract the numeric score
+            "score": score_result["score_percentage"],
         }
         return combined_data
-    finally:
-        db.close()
+
+    except Exception as e:
+        # In case Firestore doc has unexpected fields/types
+        return {"error": f"Failed to parse user responses: {str(e)}"}
 
 
 # -----------------------------
 # Analyze user skills & knowledge
 # -----------------------------
-def analyze_user_skills_knowledge(user_test_id: int) -> Dict[str, Any]:
+def analyze_user_skills_knowledge(user_test_id: str) -> Dict[str, Any]:
     combined_data = get_user_embedding_data(user_test_id)
     if "error" in combined_data:
         return combined_data
@@ -314,40 +312,19 @@ def analyze_user_skills_knowledge(user_test_id: int) -> Dict[str, Any]:
         skills_dict = result.get("skills", {})
         knowledge_dict = result.get("knowledge", {})
 
-        # Save to DB
-        db = SessionLocal()
         try:
-            existing_entry = (
-                db.query(UserSkillsKnowledge)
-                .filter(UserSkillsKnowledge.user_test_id == user_test_id)
-                .first()
+            add_user_skills(
+                user_id=str(user_test_id), skills=skills_dict, knowledge=knowledge_dict
             )
-
-            if existing_entry:
-                existing_entry.skills = skills_dict
-                existing_entry.knowledge = knowledge_dict
-                print(f"Updated existing entry for user_test_id {user_test_id}")
-            else:
-                entry = UserSkillsKnowledge(
-                    user_test_id=user_test_id,
-                    skills=skills_dict,
-                    knowledge=knowledge_dict,
-                )
-                db.add(entry)
-                print(f"Created new entry for user_test_id {user_test_id}")
-
-            db.commit()
             print(
-                f"Successfully saved skills/knowledge for user_test_id {user_test_id}"
+                f"Saved skills/knowledge for user_test_id {user_test_id} to Firestore"
             )
             return {"skills": skills_dict, "knowledge": knowledge_dict}
 
-        except Exception as db_error:
-            db.rollback()
-            print(f"Database error: {db_error}")
-            return {"error": f"Database error: {str(db_error)}"}
-        finally:
-            db.close()
+        except Exception as e:
+            error_msg = f"Failed to save skills/knowledge to Firestore: {e}"
+            print(error_msg)
+            return {"error": error_msg}
 
     except Exception as e:
         error_msg = f"Failed to analyze skills/knowledge: {str(e)}. Response: {cleaned_response if 'cleaned_response' in locals() else 'No response'}"
@@ -388,7 +365,7 @@ def generate_user_profile_text(combined_data: Dict[str, Any]) -> str:
 # -----------------------------
 # Create user embedding
 # -----------------------------
-def create_user_embedding(user_test_id: int) -> Dict[str, Any]:
+def create_user_embedding(user_test_id: str) -> Dict[str, Any]:
     """
     1) Collect combined_data (user responses + follow-up results + score)
     2) Generate descriptive profile text via OpenAI
@@ -413,7 +390,7 @@ def create_user_embedding(user_test_id: int) -> Dict[str, Any]:
 # Match user to job
 # -----------------------------
 def match_user_to_job(
-    user_test_id: int,
+    user_test_id: str,
     user_embedding: List[float],
     use_openai_summary: bool = True,
 ) -> Dict[str, Any]:
@@ -535,7 +512,7 @@ def match_user_to_job(
                     "- Do NOT include theoretical knowledge, concepts, or methodologies.\n\n"
                     "EXTRACTION RULES:\n"
                     "1. Extract ONLY technical skills: programming languages, frameworks, libraries, tools, software, and platforms.\n"
-                    "2. Assign a proficiency level for each skill: Basic, Intermediate, or Advanced.\n"
+                    "2. Assign a proficiency level for each skill: **ONLY** Basic, Intermediate, or Advanced.\n"
                     '3. Respond STRICTLY in JSON format as a dictionary: {"Skill Name": "Level", ...} without any additional text.\n'
                     "4. Be as specific as possible: if 'Python with Django' is mentioned, include 'Python' and 'Django' as separate entries.\n"
                     "5. Exclude soft skills and natural languages.\n"
@@ -544,7 +521,7 @@ def match_user_to_job(
                     "8. If multiple skills are mentioned together, create separate entries for each.\n"
                     "9. DO NOT include explanations, markdown, or code blocks.\n\n"
                     "EXAMPLE OUTPUT:\n"
-                    '{"Python": "Advanced", "Django": "Intermediate", "SQL": "Intermediate"}'
+                    '{"Python": "Basic", "Django": "Intermediate", "SQL": "Advanced"}'
                 )
 
                 knowledge_prompt = (
@@ -555,7 +532,7 @@ def match_user_to_job(
                     "- Do NOT include specific tools, software, or platforms.\n\n"
                     "EXTRACTION RULES:\n"
                     "1. Extract ONLY knowledge domains, concepts, methodologies, and specialized areas.\n"
-                    "2. Assign a proficiency level for each: Basic, Intermediate, or Advanced.\n"
+                    "2. Assign a proficiency level for each: **ONLY** Basic, Intermediate, or Advanced.\n"
                     '3. Respond STRICTLY in JSON format as a dictionary: {"Knowledge Name": "Level", ...}\n'
                     "4. Be as specific as possible: if 'Mathematics (Linear Algebra, Probability)' is mentioned, include 'Mathematics', 'Linear Algebra' and 'Probability' as separate entries.\n"
                     "5. Exclude soft skills and natural languages.\n"
@@ -563,7 +540,7 @@ def match_user_to_job(
                     "7. If multiple knowledge areas are mentioned together, create separate entries.\n"
                     "8. DO NOT include explanations, markdown, or code blocks.\n\n"
                     "EXAMPLE OUTPUT:\n"
-                    '{"Algorithms": "Intermediate", "Machine Learning": "Advanced", "Database Systems": "Intermediate"}'
+                    '{"Algorithms": "Basic", "Machine Learning": "Advanced", "Database Systems": "Intermediate"}'
                 )
 
                 print(f"Processing job {idx} with OpenAI...")
@@ -620,12 +597,12 @@ def match_user_to_job(
 
         top_matches.append(
             {
-                "user_test_id": int(user_test_id),
+                "user_test_id": str(user_test_id),
                 "job_index": int(idx),
-                "similarity_score": similarity_score,
-                "similarity_percentage": similarity_percentage,
                 "job_title": job.get("Title", "N/A"),
                 "job_description": job_desc,
+                "similarity_score": similarity_score,
+                "similarity_percentage": similarity_percentage,
                 "required_skills": required_skills,
                 "required_knowledge": required_knowledge,
             }

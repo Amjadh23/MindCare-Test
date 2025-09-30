@@ -41,16 +41,3 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-
-# Environment variables
-.env
-
-# Backend
-backend/.env
-backend/__pycache__/
-backend/*.pyc
-backend/venv/
-
-# Database
-*.db
-

@@ -1,10 +1,11 @@
-import 'package:code_map/screens/results/skill_gap_analysis.dart';
+// screens/career_recommendations_screen.dart
 import 'package:flutter/material.dart';
 import '../../models/user_profile_match.dart';
 import '../../services/api_service.dart';
+import 'package:code_map/screens/results/skill_gap_analysis.dart';
 
 class CareerRecommendationsScreen extends StatefulWidget {
-  final int userTestId;
+  final String userTestId;
 
   const CareerRecommendationsScreen({super.key, required this.userTestId});
 
@@ -18,9 +19,8 @@ class _CareerRecommendationsScreenState
   UserProfileMatchResponse? _profileMatch;
   bool _isLoading = true;
   String? _errorMessage;
-  final Map<int, bool> _expandedCards = {}; // Track which cards are expanded
-  int?
-      _selectedJobIndex; // Track which job is selected for skills/knowledge display
+  final Map<String, bool> _expandedCards = {};
+  String? _selectedJobIndex;
 
   @override
   void initState() {
@@ -29,11 +29,14 @@ class _CareerRecommendationsScreenState
   }
 
   Future<void> _fetchProfileMatch() async {
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
       print('STARTED: Fetching profile match...');
-      final result = await ApiService.getUserProfileMatch(
-        userTestId: widget.userTestId,
-      );
+      final result =
+          await ApiService.getUserProfileMatch(userTestId: widget.userTestId);
 
       if (result == null) {
         print('FAILED: API returned NULL result');
@@ -41,69 +44,62 @@ class _CareerRecommendationsScreenState
           _errorMessage = "Failed to fetch profile match.";
           _isLoading = false;
         });
-      } else {
-        print('SUCCESS: API call completed!');
-        print('Total jobs received: ${result.topMatches.length}');
+        return;
+      }
 
-        // Check each job for skills and knowledge
-        for (var i = 0; i < result.topMatches.length; i++) {
-          final job = result.topMatches[i];
-          print('--- Job ${i + 1} ---');
-          print('Title: ${job.jobTitle}');
-          print('Index: ${job.jobIndex}');
-          print('Skills count: ${job.requiredSkills.length}');
-          print('Skills: ${job.requiredSkills}');
-          print('Knowledge count: ${job.requiredKnowledge.length}');
-          print('Knowledge: ${job.requiredKnowledge}');
-          print('');
-        }
+      print(
+          'SUCCESS: API call completed! Total jobs: ${result.topMatches.length}');
+      setState(() {
+        _profileMatch = result;
+      });
 
-        setState(() {
-          _profileMatch = result;
-          _isLoading = false;
-          // Set first job as selected by default
-          if (_profileMatch!.topMatches.isNotEmpty) {
-            _selectedJobIndex = _profileMatch!.topMatches[0].jobIndex;
-            _expandedCards[_selectedJobIndex!] = true;
-            print('Selected first job by default: Index $_selectedJobIndex');
-          }
-        });
+      await _precomputeSkillGaps();
 
-        // Precompute skill gap for all jobs
-        await _precomputeSkillGaps();
+      if (_profileMatch!.topMatches.isNotEmpty) {
+        _selectedJobIndex = _profileMatch!.topMatches[0].jobIndex;
+        _expandedCards[_selectedJobIndex!] = true;
+        print('Selected first job by default: Index $_selectedJobIndex');
       }
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
+      });
+    } finally {
+      setState(() {
         _isLoading = false;
       });
     }
   }
 
-  // Request skill gap analysis for all jobs
   Future<void> _precomputeSkillGaps() async {
     if (_profileMatch == null) return;
 
     try {
-      final allGaps = await ApiService.getGapAnalysis(
-        userTestId: widget.userTestId,
-      );
+      final allGaps =
+          await ApiService.getGapAnalysis(userTestId: widget.userTestId);
 
-      // Map gaps by jobIndex for easy lookup
-      final Map<int, Map<String, dynamic>> gapsByJob = {};
-      for (var gapEntry in allGaps) {
-        final int jobIndex = gapEntry["job_index"];
-        gapsByJob[jobIndex] = gapEntry["gap_analysis"];
-      }
-
-      // Assign skills/knowledge to each job in _profileMatch
       setState(() {
         for (var job in _profileMatch!.topMatches) {
-          final gap = gapsByJob[job.jobIndex];
-          if (gap != null) {
-            job.requiredSkills = Map<String, dynamic>.from(gap["skills"] ?? {});
-            job.requiredKnowledge =
-                Map<String, dynamic>.from(gap["knowledge"] ?? {});
+          print('Mapping skill gaps for job "${job.jobTitle}"');
+
+          final gap = allGaps.firstWhere(
+            (g) => g["job_index"]?.toString() == job.jobIndex,
+            orElse: () => {},
+          );
+          if (gap.isNotEmpty) {
+            job.dbJobIndex = gap["job_index"]?.toString();
+            job.requiredSkills = gap["gap_analysis"]?["skills"] is Map
+                ? Map<String, dynamic>.from(gap["gap_analysis"]!["skills"])
+                : {};
+            job.requiredKnowledge = gap["gap_analysis"]?["knowledge"] is Map
+                ? Map<String, dynamic>.from(gap["gap_analysis"]!["knowledge"])
+                : {};
+
+            print(
+                'Mapped job "${job.jobTitle}" -> dbJobIndex: ${job.dbJobIndex}');
+          } else {
+            print(
+                'No gap found for job "${job.jobTitle}" (job_index=${job.jobIndex})');
           }
         }
       });
@@ -114,65 +110,48 @@ class _CareerRecommendationsScreenState
     }
   }
 
-  // Toggle card expansion and selection state
-  void _selectCareer(int jobIndex) {
+  void _selectCareer(String jobIndex) {
     setState(() {
-      // If clicking the already selected career, just toggle expansion
       if (_selectedJobIndex == jobIndex) {
         _expandedCards[jobIndex] = !(_expandedCards[jobIndex] ?? false);
       } else {
-        // Select new career and expand it
         _selectedJobIndex = jobIndex;
         _expandedCards[jobIndex] = true;
       }
     });
   }
 
-// Helper function to format the profile text with better structure
   List<Widget> _formatProfileText(String text) {
     final List<Widget> widgets = [];
-
-    // Clean the text to handle any OpenAI formatting inconsistencies
     String cleanedText = text
-        .replaceAll('*', '') // Remove markdown asterisks
-        .replaceAll('#', '') // Remove markdown headers
-        .replaceAll('- ', '') // Remove markdown dashes
-        .replaceAll('• ', '') // Remove bullet points
+        .replaceAll('*', '')
+        .replaceAll('#', '')
+        .replaceAll('- ', '')
+        .replaceAll('• ', '')
         .trim();
-
-    // Split by semicolons as requested in your prompt
     final lines = cleanedText.split(';');
 
     for (var line in lines) {
       line = line.trim();
       if (line.isEmpty) continue;
+      if (line.endsWith('.')) line = line.substring(0, line.length - 1);
 
-      // Remove any trailing periods
-      if (line.endsWith('.')) {
-        line = line.substring(0, line.length - 1);
-      }
-
-      // For the current OpenAI response format, treat everything as regular bullet points
-      // since it doesn't include the section headings you were expecting
-      widgets.add(
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('• ', style: TextStyle(fontSize: 16)),
-            Expanded(
-              child: Text(
-                line,
-                textAlign: TextAlign.left,
-                style: const TextStyle(fontSize: 16, height: 1.4),
-              ),
+      widgets.add(Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('• ', style: TextStyle(fontSize: 16)),
+          Expanded(
+            child: Text(
+              line,
+              textAlign: TextAlign.left,
+              style: const TextStyle(fontSize: 16, height: 1.4),
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ));
       widgets.add(const SizedBox(height: 8));
     }
 
-    // Fallback if parsing fails completely
     if (widgets.isEmpty) {
       widgets.add(
         Text(
@@ -234,17 +213,11 @@ class _CareerRecommendationsScreenState
                 ],
               ),
               const SizedBox(height: 8),
-
-              // Short preview of job description
               if (!isExpanded) _buildShortJobPreview(job.jobDescription),
-
-              // Full job description when expanded
               if (isExpanded) ...[
                 const SizedBox(height: 12),
                 ..._buildFullJobDescription(job.jobDescription),
               ],
-
-              // Expand/collapse indicator
               Align(
                 alignment: Alignment.centerRight,
                 child: Row(
@@ -280,9 +253,10 @@ class _CareerRecommendationsScreenState
     );
   }
 
-// Skills card
   Widget _buildSkillsCard(JobMatch job) {
-    if (job.requiredSkills.isEmpty) return const SizedBox.shrink();
+    if (job.requiredSkills == null || job.requiredSkills!.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Card(
       elevation: 2,
@@ -301,7 +275,7 @@ class _CareerRecommendationsScreenState
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: job.requiredSkills.keys.map((skill) {
+              children: job.requiredSkills!.keys.map((skill) {
                 return Chip(
                   label: Text(skill),
                   backgroundColor: Colors.blue[50],
@@ -315,9 +289,10 @@ class _CareerRecommendationsScreenState
     );
   }
 
-// Knowledge card
   Widget _buildKnowledgeCard(JobMatch job) {
-    if (job.requiredKnowledge.isEmpty) return const SizedBox.shrink();
+    if (job.requiredKnowledge == null || job.requiredKnowledge!.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Card(
       elevation: 2,
@@ -336,7 +311,7 @@ class _CareerRecommendationsScreenState
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: job.requiredKnowledge.keys.map((knowledge) {
+              children: job.requiredKnowledge!.keys.map((knowledge) {
                 return Chip(
                   label: Text(knowledge),
                   backgroundColor: Colors.green[50],
@@ -350,17 +325,12 @@ class _CareerRecommendationsScreenState
     );
   }
 
-  // Build short preview of job description
   Widget _buildShortJobPreview(String description) {
-    // Extract first sentence or first 120 characters
     String previewText = description;
-
-    // Try to find the first sentence ending
     final firstPeriod = description.indexOf('.');
     if (firstPeriod != -1 && firstPeriod < 120) {
       previewText = description.substring(0, firstPeriod + 1);
     } else {
-      // Fallback: first 120 characters with ellipsis
       previewText = description.length > 120
           ? '${description.substring(0, 120)}...'
           : description;
@@ -374,10 +344,8 @@ class _CareerRecommendationsScreenState
     );
   }
 
-  // Build full job description with formatting
   List<Widget> _buildFullJobDescription(String description) {
     final List<Widget> widgets = [];
-
     widgets.add(
       const Text(
         "Career Description:",
@@ -385,13 +353,10 @@ class _CareerRecommendationsScreenState
       ),
     );
     widgets.add(const SizedBox(height: 8));
-
     widgets.addAll(_formatJobDescription(description));
-
     return widgets;
   }
 
-  // Helper to format job description
   List<Widget> _formatJobDescription(String description) {
     final List<Widget> widgets = [];
     final lines = description.split('\n');
@@ -400,7 +365,6 @@ class _CareerRecommendationsScreenState
       line = line.trim();
       if (line.isEmpty) continue;
 
-      // Check if it's a bullet point
       if (line.startsWith('- ') || line.startsWith('• ')) {
         widgets.add(
           Padding(
@@ -409,33 +373,22 @@ class _CareerRecommendationsScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('• '),
-                Expanded(
-                  child: Text(
-                    line.substring(2).trim(),
-                  ),
-                ),
+                Expanded(child: Text(line.substring(2).trim())),
               ],
             ),
           ),
         );
-      }
-      // Regular paragraph
-      else {
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              line,
-            ),
-          ),
-        );
+      } else {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(line),
+        ));
       }
     }
 
     return widgets;
   }
 
-  // Helper to get color based on match percentage
   Color _getMatchColor(double percentage) {
     if (percentage >= 80) return Colors.green;
     if (percentage >= 60) return Colors.blue;
@@ -446,9 +399,7 @@ class _CareerRecommendationsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Career Recommendations"),
-      ),
+      appBar: AppBar(title: const Text("Career Recommendations")),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
@@ -466,7 +417,6 @@ class _CareerRecommendationsScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Profile Section
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
@@ -492,8 +442,6 @@ class _CareerRecommendationsScreenState
                         ),
                       ),
                       const SizedBox(height: 24),
-
-                      // Career Paths Recommendations Section
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
@@ -506,20 +454,14 @@ class _CareerRecommendationsScreenState
                       ),
                       const SizedBox(height: 12),
                       ..._profileMatch!.topMatches
-                          .map((job) => _buildJobCard(job))
-                          .toList(),
-
-                      // Show skills and knowledge ONLY for the selected career
+                          .map((job) => _buildJobCard(job)),
                       if (_selectedJobIndex != null) ...[
-                        // Find the selected job
                         for (final job in _profileMatch!.topMatches)
                           if (job.jobIndex == _selectedJobIndex) ...[
                             _buildSkillsCard(job),
                             _buildKnowledgeCard(job),
                           ],
                       ],
-
-                      // Proceed Button
                       const SizedBox(height: 32),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -529,20 +471,33 @@ class _CareerRecommendationsScreenState
                             onPressed: () {
                               if (_selectedJobIndex != null &&
                                   _profileMatch != null) {
-                                // Find the selected job
-                                final selectedJob =
-                                    _profileMatch!.topMatches.firstWhere(
-                                  (job) => job.jobIndex == _selectedJobIndex,
-                                );
-
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => SkillGapAnalysis(
-                                      userTestId: widget.userTestId,
-                                      selectedJobId:
-                                          selectedJob.jobIndex, // <-- Now valid
+                                final selectedJob = _profileMatch!.topMatches
+                                    .firstWhere((job) =>
+                                        job.jobIndex == _selectedJobIndex);
+                                if (selectedJob.dbJobIndex != null) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => SkillGapAnalysis(
+                                        userTestId: widget.userTestId,
+                                        selectedJobId: selectedJob.dbJobIndex!,
+                                      ),
                                     ),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'Skill gap data is not available for "${selectedJob.jobTitle}"'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'Please select a career path first'),
                                   ),
                                 );
                               }
@@ -565,7 +520,6 @@ class _CareerRecommendationsScreenState
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 24),
                     ],
                   ),

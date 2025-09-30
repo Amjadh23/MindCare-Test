@@ -1,69 +1,16 @@
-# CodeMap
+# code_map
 
-Personalized career recommendation and skill gap analysis powered by AI.
+A new Flutter project.
 
-## About
+## Getting Started
 
-> This project is an AI-powered career recommendation app that analyzes educational background, skill reflections, and validation/follow-up tests, matches them with suitable job profiles, and provides personalized learning recommendations.
+This project is a starting point for a Flutter application.
 
----
+A few resources to get you started if this is your first Flutter project:
 
-## Features
+- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
 
-- **Career Assessment** _(leverages NLP to analyze user input)_  
-  - **Educational Background Test** _(interprets responses using NLP)_  
-  - **Skill Reflection Test** _(leverages NLP to extracts skills and insights from text)_  
-  - **Follow-Up Test** _(leverages NLP to generates personalized MCQs from user reflections)_
-- **Generate Embeddings & Job Matches** _(leverages NLP for semantic similarity and matching)_  
-- **Career Recommendations** _(leverages NLP to tailor suggestions based on analyzed input and job data)_  
-- **Skill Gap Analysis** _(compares user skills with job requirements using NLP)_
-
-
----
-
-## Tech Stack
-
-- **Backend:** FastAPI, Python, SQLAlchemy  
-- **Frontend:** Flutter  
-- **Database:** PostgreSQL
-- **AI / ML:** OpenAI API, Hugging Face Transformers, LangChain  
-
----
-
-## Class Diagram (UML) 
-<img width="6124" height="2661" alt="deepseek_mermaid_20250915_afd380" src="https://github.com/user-attachments/assets/d5574ebd-2716-40ab-9823-a3485f3e621d" />
-
----
-
-## Project Structure
-
-```
-code_map/
-├── Frontend (Flutter)
-│   ├── lib/
-│   │   ├── models/          # Data models
-│   │   ├── screens/         # UI screens
-│   │   ├── services/        # API services and business logic
-│   │   └── main.dart        # Application entry point
-│   ├── android/             # Android-specific files
-│   ├── ios/                 # iOS-specific files
-│   ├── linux/               # Linux-specific files
-│   ├── macos/               # macOS-specific files
-│   ├── web/                 # Web-specific files
-│   ├── windows/             # Windows-specific files
-│   └── test/                # Test files
-│
-├── Backend (Python)
-│   ├── core/                # Core application logic
-│   ├── data/                # Data management
-│   ├── models/              # Database models
-│   ├── routes/              # API routes/endpoints
-│   ├── schemas/             # Data schemas (Pydantic)
-│   ├── services/            # Business logic services
-│   ├── venv/                # Python virtual environment
-│   ├── __pycache__/         # Python cache files
-│   ├── .env                 # Environment variables
-│   ├── main.py              # Application entry point
-│   └── requirements.txt     # Python dependencies
-
-
+For help getting started with Flutter development, view the
+[online documentation](https://docs.flutter.dev/), which offers tutorials,
+samples, guidance on mobile development, and a full API reference.

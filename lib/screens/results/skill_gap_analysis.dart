@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 
 class SkillGapAnalysis extends StatefulWidget {
-  final int userTestId;
-  final int selectedJobId;
+  final String userTestId;
+  final String selectedJobId;
 
   const SkillGapAnalysis({
     super.key,
@@ -33,27 +33,37 @@ class _SkillGapAnalysisState extends State<SkillGapAnalysis> {
       final allGaps =
           await ApiService.getGapAnalysis(userTestId: widget.userTestId);
 
-      // Find gap for the selected job
-      final gapEntry = allGaps.firstWhere(
-        (g) => g["job_index"] == widget.selectedJobId,
-        orElse: () => {},
-      );
+      print("DEBUG: total gaps fetched = ${allGaps.length}");
+      print("DEBUG: looking for job_index = ${widget.selectedJobId}");
 
-      if (gapEntry.isEmpty || gapEntry["gap_analysis"] == null) {
+      Map<String, dynamic>? gapEntry;
+      for (var g in allGaps) {
+        final jobIndex = g["job_index"]?.toString()?.trim();
+        print("DEBUG: found job_index = $jobIndex");
+        if (jobIndex == widget.selectedJobId.trim()) {
+          gapEntry = g;
+          break;
+        }
+      }
+
+      if (gapEntry == null || gapEntry["gap_analysis"] == null) {
         setState(() {
-          _errorMessage = "No gap analysis found for this job.";
+          _errorMessage =
+              "No gap analysis found for this job.\nCheck your backend data!";
           _isLoading = false;
         });
         return;
       }
 
       setState(() {
-        _gapData = Map<String, dynamic>.from(gapEntry["gap_analysis"]);
+        _gapData = Map<String, dynamic>.from(gapEntry?["gap_analysis"]);
+        _gapData!['job_title'] = gapEntry?['job_title'] ?? "Selected Job";
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (e, st) {
+      print("ERROR fetching gap analysis: $e\n$st");
       setState(() {
-        _errorMessage = e.toString();
+        _errorMessage = "Failed to fetch gap analysis: $e";
         _isLoading = false;
       });
     }
@@ -141,7 +151,7 @@ class _SkillGapAnalysisState extends State<SkillGapAnalysis> {
                       ),
                     ],
                   );
-                }).toList(),
+                }),
               ],
             ),
           ],
@@ -158,8 +168,14 @@ class _SkillGapAnalysisState extends State<SkillGapAnalysis> {
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
               ? Center(
-                  child: Text(_errorMessage!,
-                      style: const TextStyle(color: Colors.red)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: Colors.red),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 )
               : SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(vertical: 16),

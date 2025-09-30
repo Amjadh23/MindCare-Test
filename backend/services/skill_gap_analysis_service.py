@@ -1,87 +1,54 @@
-from sqlalchemy.orm import Session
-from models.assessment import UserSkillsKnowledge, CareerJobMatch, UserJobSkillMatch
+# backend/services/skill_gap_analysis_service.py
 
-# Define level ranking for comparison
+from models.firestore_models import (
+    get_job_by_index,
+    get_user_skills,
+    get_all_jobs,
+    set_user_job_skill_match,
+)
+
 LEVEL_ORDER = {"Not Provided": 0, "Basic": 1, "Intermediate": 2, "Advanced": 3}
 
 
-def compute_skill_gaps_for_all_jobs(user_test_id: int, db: Session):
-    """
-    Loop through all jobs in the DB and compute/save skill gaps for the given user.
-    """
+def compute_skill_gaps_for_all_jobs(user_test_id: str):
     results = []
-
-    # Fetch all jobs
-    all_jobs = db.query(CareerJobMatch).all()
+    all_jobs = get_all_jobs()
     if not all_jobs:
         return {"error": "No jobs found in the database."}
 
-    # Loop through each job and compute skill gap
     for job in all_jobs:
-        result = compare_and_save(
-            user_test_id=user_test_id, job_match_id=job.job_index, db=db
-        )
+        gap_result = compare_and_save(user_test_id, str(job["job_index"]))
+
         results.append(
             {
-                "job_index": job.job_index,
-                "job_title": job.job_title,
-                "gap_analysis": result,
+                "job_index": str(job["job_index"]),
+                "job_title": gap_result.get("job_title", job.get("job_title", "N/A")),
+                "gap_analysis": gap_result.get("gap_analysis", {}),
             }
         )
 
     return results
 
 
-def compare_and_save(user_test_id: int, job_match_id: int, db: Session):
-    """
-    Fetch user & job data from DB, compare, save result into UserJobSkillMatch.
-    """
-
-    # Fetch user data
-    user_data = (
-        db.query(UserSkillsKnowledge).filter_by(user_test_id=user_test_id).first()
-    )
+def compare_and_save(user_test_id: str, job_match_id: str):
+    user_data = get_user_skills(user_test_id)
     if not user_data:
-        return {"error": f"No user skills/knowledge for user_test_id={user_test_id}"}
+        return {"gap_analysis": {"skills": {}, "knowledge": {}}, "job_title": "N/A"}
 
-    # Fetch job data
-    job_data = db.query(CareerJobMatch).filter_by(job_index=job_match_id).first()
+    job_data = get_job_by_index(job_match_id)
     if not job_data:
-        return {"error": f"No job match found for job_match_id={job_match_id}"}
+        return {"gap_analysis": {"skills": {}, "knowledge": {}}, "job_title": "N/A"}
 
-    # Use the real DB id for UserJobSkillMatch
-    job_match_id = job_data.id
+    user_skills = user_data.get("skills", {})
+    user_knowledge = user_data.get("knowledge", {})
+    req_skills = job_data.get("required_skills", {})
+    req_knowledge = job_data.get("required_knowledge", {})
 
-    # Extract dicts
-    user_skills = user_data.skills or {}
-    user_knowledge = user_data.knowledge or {}
-    req_skills = job_data.required_skills or {}
-    req_knowledge = job_data.required_knowledge or {}
+    gap_analysis = {"skills": {}, "knowledge": {}}
 
-    # Compare
-    result = {"skills": {}, "knowledge": {}}
-
-    # --- Skills
+    # Compare skills
     for skill, req_level in req_skills.items():
         user_level = user_skills.get(skill, "Not Provided")
-
-        if user_level == "Not Provided":
-            status = "Missing"
-        elif LEVEL_ORDER[user_level] >= LEVEL_ORDER[req_level]:
-            status = "Achieved"
-        else:
-            status = "Weak"  # user provided, but below requirement
-
-        result["skills"][skill] = {
-            "required_level": req_level,
-            "user_level": user_level,
-            "status": status,
-        }
-
-    # --- Knowledge
-    for knowledge, req_level in req_knowledge.items():
-        user_level = user_knowledge.get(knowledge, "Not Provided")
-
         if user_level == "Not Provided":
             status = "Missing"
         elif LEVEL_ORDER[user_level] >= LEVEL_ORDER[req_level]:
@@ -89,33 +56,35 @@ def compare_and_save(user_test_id: int, job_match_id: int, db: Session):
         else:
             status = "Weak"
 
-        result["knowledge"][knowledge] = {
+        gap_analysis["skills"][skill] = {
             "required_level": req_level,
             "user_level": user_level,
             "status": status,
         }
 
-    # Save to DB (insert or update)
-    existing = (
-        db.query(UserJobSkillMatch)
-        .filter_by(user_test_id=user_test_id, job_match_id=job_match_id)
-        .first()
+    # Compare knowledge
+    for knowledge, req_level in req_knowledge.items():
+        user_level = user_knowledge.get(knowledge, "Not Provided")
+        if user_level == "Not Provided":
+            status = "Missing"
+        elif LEVEL_ORDER[user_level] >= LEVEL_ORDER[req_level]:
+            status = "Achieved"
+        else:
+            status = "Weak"
+
+        gap_analysis["knowledge"][knowledge] = {
+            "required_level": req_level,
+            "user_level": user_level,
+            "status": status,
+        }
+
+    # Synchronous Firestore call
+    set_user_job_skill_match(
+        user_id=user_test_id,
+        job_match_id=job_match_id,
+        skill_status=gap_analysis["skills"],
+        knowledge_status=gap_analysis["knowledge"],
+        job_title=job_data.get("job_title", "N/A"),
     )
 
-    if existing:
-        existing.skill_status = result["skills"]
-        existing.knowledge_status = result["knowledge"]
-    else:
-        entry = UserJobSkillMatch(
-            user_test_id=user_test_id,
-            job_match_id=job_match_id,
-            skill_status=result["skills"],
-            knowledge_status=result["knowledge"],
-        )
-        db.add(entry)
-
-    db.commit()
-
-    result["job_title"] = job_data.job_title
-
-    return result
+    return {"gap_analysis": gap_analysis, "job_title": job_data.get("job_title", "N/A")}

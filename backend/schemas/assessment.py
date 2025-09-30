@@ -16,16 +16,16 @@ class UserResponses(BaseModel):
 
 
 class SkillReflectionRequest(BaseModel):
-    user_test_id: int
+    user_test_id: str
 
 
 # -----------------------------
 # Follow-up test schemas
 # -----------------------------
 class FollowUpResponse(BaseModel):
-    questionId: int
+    questionId: str
     selectedOption: str
-    user_test_id: int
+    user_test_id: str
 
 
 class FollowUpResponses(BaseModel):

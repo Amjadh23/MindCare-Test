@@ -31,8 +31,8 @@ class ApiService {
   static final String baseUrl =
       dotenv.env['BASE_URL'] ?? "http://localhost:8000";
 
-  // Submit the initial test and return the generated userTestId
-  static Future<int> submitTest(UserResponses responses) async {
+  // Submit the initial test and return the generated userTestId (String)
+  static Future<String> submitTest(UserResponses responses) async {
     final url = Uri.parse("$baseUrl/submit-test");
 
     final response = await _requestWithRetry(() => http.post(
@@ -44,15 +44,16 @@ class ApiService {
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
       print("Submit Success: $decoded");
-      return decoded['id'];
+      return decoded['id'] as String; // Firebase IDs are strings
     } else {
       throw Exception("Submit Error: ${response.statusCode} ${response.body}");
     }
   }
 
+  // Generate questions
   static Future<List<Map<String, dynamic>>> generateQuestions({
     required String skillReflection,
-    required int userTestId,
+    required String userTestId, // now String
   }) async {
     final url = Uri.parse("$baseUrl/generate-questions");
 
@@ -113,7 +114,7 @@ class ApiService {
 
   // Get user profile and job match
   static Future<UserProfileMatchResponse?> getUserProfileMatch({
-    required int userTestId,
+    required String userTestId, // now String
     String? skillReflection,
   }) async {
     final url = Uri.parse("$baseUrl/user-profile-match");
@@ -138,9 +139,9 @@ class ApiService {
     }
   }
 
-// Get skill and knowledge gap analysis for all jobs
+  // Get skill and knowledge gap analysis for all jobs
   static Future<List<Map<String, dynamic>>> getGapAnalysis({
-    required int userTestId,
+    required String userTestId,
   }) async {
     final url = Uri.parse("$baseUrl/gap-analysis/all/$userTestId");
 
@@ -151,8 +152,22 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
-      if (decoded is List) return List<Map<String, dynamic>>.from(decoded);
-      throw Exception("Unexpected response format for all gap analysis");
+
+      // Extract the 'data' list from the backend response
+      if (decoded is Map && decoded.containsKey('data')) {
+        final data = decoded['data'];
+        if (data is List) {
+          // Ensure each item is a Map<String, dynamic>
+          return data.map<Map<String, dynamic>>((item) {
+            return Map<String, dynamic>.from(item);
+          }).toList();
+        }
+        throw Exception(
+            "Expected 'data' to be a List, but got: ${data.runtimeType}");
+      }
+
+      throw Exception(
+          "Unexpected response format for all gap analysis: ${decoded.runtimeType}");
     } else {
       throw Exception(
           "Error fetching gap analysis: ${response.statusCode} ${response.body}");

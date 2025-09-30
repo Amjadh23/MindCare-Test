@@ -1,7 +1,6 @@
 import 'package:code_map/screens/skill_reflection_test/career_goals.dart';
 import 'package:flutter/material.dart';
 import '../../models/user_responses.dart';
-import '../follow_up_test/follow_up_screen.dart';
 
 class SkillReflectionTest extends StatefulWidget {
   final UserResponses userResponse;
@@ -101,7 +100,7 @@ class _SkillReflectionTestState extends State<SkillReflectionTest> {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _onCompletePressed,
-              child: const Text("Complete"),
+              child: const Text("Next"),
             ),
           ],
         ),

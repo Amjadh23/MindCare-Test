@@ -5,7 +5,7 @@ import '../../models/user_responses.dart';
 import '../../services/api_service.dart';
 
 class FollowUpTest extends StatefulWidget {
-  final int userTestId; // passed from FollowUpScreen
+  final String userTestId; // passed from FollowUpScreen
   final UserResponses userResponse;
   final List<dynamic> questions;
 

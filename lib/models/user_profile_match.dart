@@ -1,13 +1,15 @@
 class JobMatch {
-  final int userTestId;
-  final int jobIndex;
+  final String userTestId;
+  final String jobIndex;
   final double similarityScore;
   final double similarityPercentage;
   final String jobTitle;
   final String jobDescription;
-  late final Map<String, dynamic> requiredSkills;
-  late final Map<String, dynamic> requiredKnowledge;
+  Map<String, dynamic>? requiredSkills;
+  Map<String, dynamic>? requiredKnowledge;
   final Map<String, dynamic>? comparison;
+
+  String? dbJobIndex;
 
   JobMatch({
     required this.userTestId,
@@ -16,24 +18,24 @@ class JobMatch {
     required this.similarityPercentage,
     required this.jobTitle,
     required this.jobDescription,
-    required this.requiredSkills,
-    required this.requiredKnowledge,
-    required this.comparison,
+    this.requiredSkills,
+    this.requiredKnowledge,
+    this.comparison,
   });
 
   factory JobMatch.fromJson(Map<String, dynamic> json) => JobMatch(
-        userTestId: json["user_test_id"] as int? ?? 0,
-        jobIndex: json["job_index"] as int? ?? 0,
+        userTestId: json["user_test_id"]?.toString() ?? 'N/A',
+        jobIndex: json["job_index"]?.toString() ?? 'N/A',
         similarityScore: (json["similarity_score"] as num?)?.toDouble() ?? 0.0,
         similarityPercentage:
             (json["similarity_percentage"] as num?)?.toDouble() ?? 0.0,
         jobTitle: json["job_title"] as String? ?? 'N/A',
         jobDescription: json["job_description"] as String? ?? 'N/A',
         requiredSkills:
-            (json["required_skills"] as Map<String, dynamic>? ?? {}),
+            (json["required_skills"] as Map<String, dynamic>?) ?? {},
         requiredKnowledge:
-            (json["required_knowledge"] as Map<String, dynamic>? ?? {}),
-        comparison: (json['comparison'] as Map<String, dynamic>?) ?? {},
+            (json["required_knowledge"] as Map<String, dynamic>?) ?? {},
+        comparison: json["comparison"] as Map<String, dynamic>?,
       );
 }
 

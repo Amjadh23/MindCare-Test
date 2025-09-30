@@ -31,7 +31,7 @@ Personalized career recommendation and skill gap analysis powered by AI.
 ---
 
 ## Class Diagram (UML) 
-<img width="6124" height="2661" alt="deepseek_mermaid_20250915_afd380" src="https://github.com/user-attachments/assets/d5574ebd-2716-40ab-9823-a3485f3e621d" />
+![alt text](../../Users/user/Downloads/0250930_e421b2.png)
 
 ---
 

@@ -7,11 +7,29 @@ from models.firestore_models import (
 )
 import matplotlib
 
-matplotlib.use("Agg")  # use non-interactive backend
+matplotlib.use("Agg")  # non-interactive backend
 import matplotlib.pyplot as plt
 import numpy as np
 import io
 import base64
+
+
+# Map text labels to numeric levels
+LEVEL_MAP = {
+    "Not Provided": 0,
+    "Basic": 1,
+    "Intermediate": 2,
+    "Advanced": 3,
+}
+
+
+def normalize_level(level):
+    """Convert skill level text/number into a consistent numeric scale."""
+    if isinstance(level, (int, float)):
+        return level
+    if level is None:
+        return 0
+    return LEVEL_MAP.get(str(level).strip(), 0)
 
 
 def generate_radar_chart(skills, user_level, required_level):
@@ -22,7 +40,7 @@ def generate_radar_chart(skills, user_level, required_level):
     required_level_radar = required_level + required_level[:1]
     angles += angles[:1]
 
-    # plot
+    # plot setup
     plt.figure(figsize=(6, 6))
     ax = plt.subplot(111, polar=True)
 
@@ -43,8 +61,8 @@ def generate_radar_chart(skills, user_level, required_level):
 
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(skills)
-    ax.set_yticks([0, 1, 2])
-    ax.set_yticklabels(["Not Detected", "Beginner", "Intermediate"])
+    ax.set_yticks([0, 1, 2, 3])
+    ax.set_yticklabels(["Not Detected", "Basic", "Intermediate", "Advanced"])
     ax.set_title("Skill Gap Analysis", size=12)
     ax.legend(loc="upper right")
 
@@ -58,31 +76,13 @@ def generate_radar_chart(skills, user_level, required_level):
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
-from models.firestore_models import (
-    get_generated_questions,
-    get_follow_up_answers_by_user,
-)
-
-
-from models.firestore_models import (
-    get_generated_questions,
-    get_follow_up_answers_by_user,
-)
-
-
 def calculate_test_performance(user_test_id: str):
-    """
-    Calculate accuracy by difficulty and question type.
-    """
-    # Fetch questions and user answers
+    """Calculate accuracy by difficulty and question type."""
     questions = get_generated_questions(user_test_id)
     answers = get_follow_up_answers_by_user(user_test_id)
 
-    # Map answers by question_id for quick lookup
     answers_map = {a["question_id"]: a["selected_option"] for a in answers}
-    print(f"Answers Map: {answers_map}")
 
-    # Initialize performance counters
     performance_by_difficulty = {}
     performance_by_type = {}
 
@@ -94,26 +94,21 @@ def calculate_test_performance(user_test_id: str):
         difficulty = q.get("difficulty", "Unknown")
         qtype = q.get("question_type", "Unknown")
 
-        # Initialize counters
         performance_by_difficulty.setdefault(difficulty, {"correct": 0, "total": 0})
         performance_by_type.setdefault(qtype, {"correct": 0, "total": 0})
 
-        # Increment totals
         performance_by_difficulty[difficulty]["total"] += 1
         performance_by_type[qtype]["total"] += 1
 
-        # Normalize user's answer to just the option letter
         user_choice = None
         if user_answer:
             user_choice = user_answer.strip()[0].upper()  # e.g., "B. text" -> "B"
 
-        # Check correctness
         is_correct = user_choice == correct_answer.upper()
         if is_correct:
             performance_by_difficulty[difficulty]["correct"] += 1
             performance_by_type[qtype]["correct"] += 1
 
-    # Convert counts to percentages
     difficulty_accuracy = {
         k: (v["correct"] / v["total"]) * 100 if v["total"] > 0 else 0
         for k, v in performance_by_difficulty.items()
@@ -138,7 +133,6 @@ def generate_bar_chart(data: dict, title: str, xlabel: str, ylabel: str):
     plt.ylabel(ylabel)
     plt.ylim(0, 100)
 
-    # Add labels on bars
     for bar, value in zip(bars, values):
         plt.text(
             bar.get_x() + bar.get_width() / 2,
@@ -148,7 +142,6 @@ def generate_bar_chart(data: dict, title: str, xlabel: str, ylabel: str):
             fontsize=8,
         )
 
-    # Save to buffer
     buf = io.BytesIO()
     plt.savefig(buf, format="png", dpi=300, bbox_inches="tight")
     buf.seek(0)
@@ -158,28 +151,43 @@ def generate_bar_chart(data: dict, title: str, xlabel: str, ylabel: str):
 
 
 def get_report_data(user_test_id: str, job_index: str):
-    """
-    Combine profile_text and job details into a single report.
-    """
+    """Combine profile_text and job details into a single report."""
     profile_text = get_profile_text_by_user(user_test_id)
     job_data = get_job_by_index(job_index)
-
-    # get user skills and knowledge
     user_data = get_user_skills(user_test_id)
-    user_skills = user_data.get("skills", {})
 
-    # extract job skill requirements
-    job_skills = job_data.get("required_skills", {})  # dict {skill: level}
+    # Raw skill dicts
+    job_skills_raw = job_data.get("required_skills", {})
+    user_skills_raw = user_data.get("skills", {})
 
-    # align skill levels
-    skills = list(job_skills.keys())
-    required_level = [job_skills[s] for s in skills]
-    user_level = [user_skills.get(s, 0) for s in skills]
+    # Use raw skill names directly
+    job_skills = job_skills_raw
+    user_skills = user_skills_raw
 
-    # chart
+    # Create consistent skill list (from job listing)
+    skills = list(job_skills_raw.keys())
+
+    # Map raw keys to values with case-insensitive fallback
+    required_level = [normalize_level(job_skills.get(skill, 0)) for skill in skills]
+    user_level = [
+        normalize_level(
+            user_skills.get(skill)
+            or user_skills.get(skill.lower())
+            or user_skills.get(skill.title())
+            or 0
+        )
+        for skill in skills
+    ]
+
+    # Debug (optional): to inspect mismatched skills
+    print("Job Skills:", job_skills_raw)
+    print("User Skills:", user_skills_raw)
+    print("Matched Skills:", skills)
+    print("User Levels:", user_level)
+    print("Required Levels:", required_level)
+
+    # Generate charts
     radar_chart_base64 = generate_radar_chart(skills, user_level, required_level)
-
-    # Test performance charts
     performance = calculate_test_performance(user_test_id)
     difficulty_chart = generate_bar_chart(
         performance["by_difficulty"],
@@ -196,9 +204,10 @@ def get_report_data(user_test_id: str, job_index: str):
         "profile_text": profile_text,
         "job": job_data,
         "charts": {
-            "radar_chart": radar_chart_base64,  # base64 string to PNG
+            "radar_chart": radar_chart_base64,
             "difficulty_chart": difficulty_chart,
             "type_chart": type_chart,
         },
     }
+
     return report

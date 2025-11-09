@@ -20,7 +20,7 @@ if not PINECONE_API_KEY:
 # =====================================
 # Configurations
 # =====================================
-INDEX_NAME = "code-map"  # Your Pinecone index name
+INDEX_NAME = "code-map"  # Pinecone index name
 FOLDER_PATH = "../data"  # Folder containing CSVs
 COLUMN_NAME = "Full Job Description"  # Column to embed
 BATCH_SIZE = 100  # Number of vectors per upload batch
@@ -67,7 +67,7 @@ df = pd.concat(dfs, ignore_index=True)
 print(f"\nTotal combined job records: {len(df)}")
 
 # =====================================
-# Data Cleaning (critical!)
+# Data Cleaning
 # =====================================
 # Replace NaN, None, etc. with empty strings
 df = df.fillna("")

@@ -89,6 +89,8 @@ class _FollowUpScreenState extends State<FollowUpScreen> {
       // Generate follow-up questions
       final questions = await ApiService.generateQuestions(
         skillReflection: widget.userResponse.skillReflection,
+        thesisFindings: widget.userResponse.thesisFindings,
+        careerGoals: widget.userResponse.careerGoals,
         userTestId: userTestId,
       );
 

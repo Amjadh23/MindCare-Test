@@ -53,6 +53,8 @@ class ApiService {
   // Generate questions
   static Future<List<Map<String, dynamic>>> generateQuestions({
     required String skillReflection,
+    required String thesisFindings,
+    required String careerGoals,
     required String userTestId,
   }) async {
     final url = Uri.parse("$baseUrl/generate-questions");

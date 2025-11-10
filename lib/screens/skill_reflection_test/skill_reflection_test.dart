@@ -1,4 +1,5 @@
 import 'package:code_map/screens/skill_reflection_test/career_goals.dart';
+import 'package:code_map/screens/skill_reflection_test/thesis_findings.dart';
 import 'package:flutter/material.dart';
 import '../../models/user_responses.dart';
 
@@ -59,12 +60,22 @@ class _SkillReflectionTestState extends State<SkillReflectionTest> {
     }
     widget.userResponse.skillReflection = _controller.text;
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CareerGoals(userResponse: widget.userResponse),
-      ),
-    );
+    if (widget.userResponse.educationLevel == "Doctorate (PhD)") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              ThesisFindings(userResponse: widget.userResponse),
+        ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CareerGoals(userResponse: widget.userResponse),
+        ),
+      );
+    }
   }
 
   @override

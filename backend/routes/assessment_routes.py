@@ -9,7 +9,7 @@ from schemas.assessment import (
     JobMatch,
     UserProfileMatchResponse,
 )
-from services.openai_service import generate_questions
+from services.questions_generation_service import generate_questions
 from services.embedding_service import (
     create_user_embedding,
     match_user_to_job,
@@ -37,10 +37,12 @@ def submit_test(data: UserResponses):
     doc_data = {
         "educationLevel": data.educationLevel,
         "cgpa": data.cgpa,
+        "thesisTopic": data.thesisTopic,
         "major": data.major,
         "programmingLanguages": data.programmingLanguages,
         "courseworkExperience": data.courseworkExperience,
         "skillReflection": data.skillReflection,
+        "thesisFindings": data.thesisFindings,
         "careerGoals": data.careerGoals,
     }
     user_id = create_user_test(doc_data)
@@ -57,11 +59,20 @@ def create_follow_up_questions(data: SkillReflectionRequest):
     if not user_ref.exists:
         return {"error": "User not found"}
 
+    doc = user_ref.to_dict()
     skill_reflection = user_ref.to_dict().get("skillReflection")
-    if not skill_reflection:
-        return {"error": "No skill reflection found for this user_test_id"}
+    thesis_findings = user_ref.to_dict().get("thesisFindings")
+    career_goals = user_ref.to_dict().get("careerGoals")
 
-    result = generate_questions(skill_reflection)
+    if not skill_reflection and not thesis_findings and not career_goals:
+        return {"error": "Insufficient data to generate questions"}
+
+    # pass all three into service (allowing service to handle None/empty)
+    result = generate_questions(
+        skill_reflection=skill_reflection,
+        thesis_findings=thesis_findings,
+        career_goals=career_goals,
+    )
     raw_questions = result.get("questions", [])
 
     saved_questions = []

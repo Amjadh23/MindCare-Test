@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional
 
 
 # -----------------------------
@@ -8,10 +8,12 @@ from typing import List, Dict, Optional, Any
 class UserResponses(BaseModel):
     educationLevel: Optional[str]
     cgpa: Optional[float]
+    thesisTopic: Optional[str]
     major: Optional[str]
     programmingLanguages: List[str] = []
     courseworkExperience: Optional[str]
     skillReflection: Optional[str]
+    thesisFindings: Optional[str]
     careerGoals: Optional[str]
 
 

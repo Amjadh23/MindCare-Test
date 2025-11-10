@@ -9,8 +9,8 @@ from core.database import db
 def create_user_test(data: dict) -> str:
     """
     Create a new user test document.
-    data keys: educationLevel, cgpa, major, programmingLanguages,
-               courseworkExperience, skillReflection, careerGoals
+    data keys: educationLevel, cgpa, thesisTopic, major, programmingLanguages,
+               courseworkExperience, skillReflection, thesisFindings, careerGoals
     Returns the new document ID.
     """
     user_ref = db.collection("user_tests").document()  # auto-ID

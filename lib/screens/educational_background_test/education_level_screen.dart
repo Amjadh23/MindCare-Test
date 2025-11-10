@@ -1,3 +1,4 @@
+import 'package:code_map/screens/educational_background_test/thesis_topic_screen.dart';
 import 'package:flutter/material.dart';
 import '../../models/user_responses.dart';
 import 'cgpa_screen.dart';
@@ -19,7 +20,8 @@ class _EducationLevelScreenState extends State<EducationLevelScreen> {
     "STPM (Sijil Tinggi Persekolahan Malaysia)",
     "Diploma",
     "Undergraduate (Bachelor's Degree)",
-    "Postgraduate (Master's Degree)"
+    "Postgraduate (Master's Degree)",
+    "Doctorate (PhD)",
   ];
 
   @override
@@ -55,12 +57,27 @@ class _EducationLevelScreenState extends State<EducationLevelScreen> {
             onPressed: () {
               if (selectedLevel != null) {
                 widget.userResponse.educationLevel = selectedLevel!;
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        CgpaScreen(userResponse: widget.userResponse),
-                  ),
+                if (selectedLevel == "Doctorate (PhD)") {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ThesisTopicScreen(userResponse: widget.userResponse),
+                    ),
+                  );
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          CgpaScreen(userResponse: widget.userResponse),
+                    ),
+                  );
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text("Please select an education level.")),
                 );
               }
             },

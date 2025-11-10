@@ -2,43 +2,43 @@ import 'package:flutter/material.dart';
 import '../../models/user_responses.dart';
 import 'major_screen.dart';
 
-class CgpaScreen extends StatefulWidget {
+class ThesisTopicScreen extends StatefulWidget {
   final UserResponses userResponse;
 
-  const CgpaScreen({super.key, required this.userResponse});
+  const ThesisTopicScreen({super.key, required this.userResponse});
 
   @override
-  State<CgpaScreen> createState() => _CgpaScreenState();
+  State<ThesisTopicScreen> createState() => _ThesisTopicScreenState();
 }
 
-class _CgpaScreenState extends State<CgpaScreen> {
-  final TextEditingController cgpaController = TextEditingController();
+class _ThesisTopicScreenState extends State<ThesisTopicScreen> {
+  final TextEditingController thesisTopicController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Current CGPA")),
+      appBar: AppBar(title: const Text("Thesis Topic")),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             const Text(
-              "What is your current CGPA?",
+              "What is your thesis topic?",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             TextField(
-              controller: cgpaController,
+              controller: thesisTopicController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                hintText: "Enter your CGPA",
+                hintText: "Enter your thesis topic",
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                if (cgpaController.text.isNotEmpty) {
-                  widget.userResponse.cgpa = cgpaController.text;
+                if (thesisTopicController.text.isNotEmpty) {
+                  widget.userResponse.thesisTopic = thesisTopicController.text;
                   Navigator.push(
                     context,
                     MaterialPageRoute(

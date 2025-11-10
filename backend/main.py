@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from routes import assessment_routes
-from services.embedding_service import initialize_ai_models, is_initialized
+from core.model_loader import initialize_ai_models, is_initialized
 
 # Create FastAPI app
 app = FastAPI(title="CodeMap API")

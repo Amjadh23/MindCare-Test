@@ -189,4 +189,19 @@ class ApiService {
       throw Exception("Failed to load report: ${response.statusCode}");
     }
   }
+
+  // Generate Career Roadmap
+  static Future<Map<String, dynamic>> generateCareerRoadmap(
+      String userTestId, String jobIndex) async {
+    final url =
+        Uri.parse("$baseUrl/career-roadmap-generation/$userTestId/$jobIndex");
+
+    final response = await http.post(url);
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception("Failed to load career roadmap: ${response.statusCode}");
+    }
+  }
 }

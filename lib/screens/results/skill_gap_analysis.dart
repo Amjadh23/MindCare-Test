@@ -247,7 +247,7 @@ class _SkillGapAnalysisScreenState extends State<SkillGapAnalysisScreen> {
                             onPressed: () {
                               // don't know yet :3
                             },
-                            child: const Text("Complete"),
+                            child: const Text("Retake Test"),
                           ),
                         ],
                       ),

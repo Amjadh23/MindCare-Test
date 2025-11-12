@@ -29,11 +29,13 @@ class EducationalBackgroundTestScreen extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  // Create a new UserResponses instance
+                  // initialize empty response object to track user's progress
+                  // this object will be passed through all test screens
                   UserResponses userResponse =
                       UserResponses(followUpAnswers: {});
 
-                  // Navigate to EducationScreen with the new object
+                  // navigate to education level selection screen
+                  // pass the response object to collect user inputs
                   Navigator.push(
                     context,
                     MaterialPageRoute(

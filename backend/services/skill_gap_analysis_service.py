@@ -10,7 +10,9 @@ LEVEL_ORDER = {"Not Provided": 0, "Basic": 1, "Intermediate": 2, "Advanced": 3}
 
 def compute_skill_gaps_for_all_jobs(user_test_id: str):
     results = []
-    all_jobs = get_all_jobs()
+    all_jobs = (
+        get_all_jobs()
+    )  # retrievs all jobs from career recommendations for this user test id
     if not all_jobs:
         return {"error": "No jobs found in the database."}
 

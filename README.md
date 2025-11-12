@@ -4,7 +4,7 @@ Personalized career recommendation and skill gap analysis powered by AI.
 
 ## About
 
-> This project is an AI-powered career recommendation app that analyzes educational background, skill reflections, and validation/follow-up tests, matches them with suitable job profiles, and provides personalized learning recommendations.
+> This project is an AI-powered career recommendation app that analyzes educational background, skill reflections, and validation/follow-up tests, matches them with suitable job profiles, and provides personalized career roadmaps.
 
 ---
 

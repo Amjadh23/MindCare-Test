@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain.prompts import PromptTemplate
@@ -72,31 +73,39 @@ non_coding_questions_prompt = PromptTemplate(
 - Ensure all topics represented at least once.
 - Difficulty ratio: 1 Easy, 3 Medium, 6 Hard.
 - Return as JSON array like:
-{{"question": "...", "difficulty": "Easy/Medium/Hard", "category": "Non-coding"}}""",
+[{{"question": "...", "difficulty": "Easy/Medium/Hard", "category": "Non-coding"}}]""",
 )
 
 coding_mcqs_prompt = PromptTemplate(
     input_variables=["questions"],
     template="""Convert the following coding questions to JSON MCQs:
 {questions}
-- Keep difficulty/category unchanged.
-- Each question must have 4 options: A, B, C, D.
-- Only 1 option correct, indicate with "answer".
-- Options format example: "A. Option text"
-- Return as JSON array like:
-[{{"question": "...", "options": ["A","B","C","D"], "answer":"A", "difficulty":"Easy", "category":"Coding"}}]""",
+
+Requirements:
+- Keep difficulty/category unchanged
+- Each question must have 4 options: A, B, C, D
+- Only 1 option correct, indicate with "answer"
+- Options format: ["A. Option text", "B. Option text", "C. Option text", "D. Option text"]
+- Return PURE JSON only, no markdown code blocks, no explanations
+- Structure: [{{"question": "...", "options": ["A...","B...","C...","D..."], "answer":"A", "difficulty":"Easy", "category":"Coding"}}]
+
+IMPORTANT: Output must be valid JSON only, no ```json or any other text:""",
 )
 
 non_coding_mcqs_prompt = PromptTemplate(
     input_variables=["questions"],
     template="""Convert the following non-coding questions to JSON MCQs:
 {questions}
-- Keep difficulty/category unchanged.
-- Each question must have 4 options: A, B, C, D.
-- Only 1 option correct, indicate with "answer".
-- Options format example: "A. Option text"
-- Return as JSON array like:
-[{{"question": "...", "options": ["A","B","C","D"], "answer":"A", "difficulty":"Easy", "category":"Non-coding"}}]""",
+
+Requirements:
+- Keep difficulty/category unchanged
+- Each question must have 4 options: A, B, C, D
+- Only 1 option correct, indicate with "answer"
+- Options format: ["A. Option text", "B. Option text", "C. Option text", "D. Option text"]
+- Return PURE JSON only, no markdown code blocks, no explanations
+- Structure: [{{"question": "...", "options": ["A...","B...","C...","D..."], "answer":"A", "difficulty":"Easy", "category":"Non-coding"}}]
+
+IMPORTANT: Output must be valid JSON only, no ```json or any other text:""",
 )
 
 # -----------------------------
@@ -110,24 +119,66 @@ coding_questions_chain = LLMChain(
 non_coding_questions_chain = LLMChain(
     llm=llm, prompt=non_coding_questions_prompt, output_parser=json_parser
 )
-coding_mcqs_chain = LLMChain(
-    llm=llm, prompt=coding_mcqs_prompt, output_parser=json_parser
-)
-non_coding_mcqs_chain = LLMChain(
-    llm=llm, prompt=non_coding_mcqs_prompt, output_parser=json_parser
-)
+# Remove JsonOutputParser from MCQ chains since they return markdown-wrapped JSON
+coding_mcqs_chain = LLMChain(llm=llm, prompt=coding_mcqs_prompt)
+non_coding_mcqs_chain = LLMChain(llm=llm, prompt=non_coding_mcqs_prompt)
 
 
-def validate_and_fix_json(json_string):
-    """Validate and fix JSON structure if possible"""
-    try:
-        # First try to parse as-is
-        data = json.loads(json_string)
-        return data
-    except json.JSONDecodeError as e:
-        print(f"[DEBUG] JSON parse error: {e}")
-        print(f"[DEBUG] Problematic JSON: {json_string}")
-        return None
+def extract_json_from_response(text):
+    """Extract JSON from LLM response that might be wrapped in markdown"""
+    if isinstance(text, (dict, list)):
+        return text
+
+    if isinstance(text, str):
+        # Try to parse as pure JSON first
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+
+        # Extract JSON from markdown code blocks
+        json_match = re.search(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1).strip()
+            try:
+                return json.loads(json_str)
+            except json.JSONDecodeError:
+                pass
+
+        # Try to find JSON array pattern
+        array_match = re.search(r"(\[.*\])", text, re.DOTALL)
+        if array_match:
+            try:
+                return json.loads(array_match.group(1))
+            except json.JSONDecodeError:
+                pass
+
+    return None
+
+
+def validate_question_structure(questions):
+    """Validate that each question has the required structure"""
+    valid_questions = []
+    for q in questions:
+        if isinstance(q, dict) and all(
+            key in q
+            for key in ["question", "options", "answer", "difficulty", "category"]
+        ):
+            # Also validate options is a list with 4 elements
+            if isinstance(q["options"], list) and len(q["options"]) == 4:
+                valid_questions.append(q)
+            else:
+                print(
+                    f"[WARNING] Skipping question with invalid options: {q.get('options')}"
+                )
+        else:
+            missing_keys = [
+                k
+                for k in ["question", "options", "answer", "difficulty", "category"]
+                if k not in q
+            ]
+            print(f"[WARNING] Skipping question missing keys {missing_keys}")
+    return valid_questions
 
 
 # -----------------------------
@@ -193,34 +244,18 @@ def generate_questions(skill_reflection: str, thesis_findings: str, career_goals
     if coding_questions:
         try:
             coding_mcqs_raw = coding_mcqs_chain.run({"questions": coding_questions})
-            coding_mcqs = (
-                coding_mcqs_raw
-                if isinstance(coding_mcqs_raw, list)
-                else coding_mcqs_raw
-            )
+            coding_mcqs = extract_json_from_response(coding_mcqs_raw)
+
             if not isinstance(coding_mcqs, list):
-                print("ERROR] Coding MCQs not a list")
+                print(f"[ERROR] Coding MCQs are not a list. Type: {type(coding_mcqs)}")
+                print(f"[DEBUG] Raw output: {coding_mcqs_raw}")
                 coding_mcqs = []
             else:
-                # validate each question has the correct structure
-                valid_questions = []
-                for q in coding_mcqs:
-                    if all(
-                        key in q
-                        for key in [
-                            "question",
-                            "options",
-                            "answer",
-                            "difficulty",
-                            "category",
-                        ]
-                    ):
-                        valid_questions.append(q)
-                    else:
-                        print(f"[WARNING] Skipping invalid question structure: {q}")
-                coding_mcqs = valid_questions
+                coding_mcqs = validate_question_structure(coding_mcqs)
+
         except Exception as e:
             print("[ERROR] Failed coding MCQs:", e)
+            print(f"[DEBUG] Raw output: {coding_mcqs_raw}")
 
     # Convert non-coding questions to MCQs
     non_coding_mcqs = []
@@ -229,34 +264,20 @@ def generate_questions(skill_reflection: str, thesis_findings: str, career_goals
             non_coding_mcqs_raw = non_coding_mcqs_chain.run(
                 {"questions": non_coding_questions}
             )
-            non_coding_mcqs = (
-                non_coding_mcqs_raw
-                if isinstance(non_coding_mcqs_raw, list)
-                else non_coding_mcqs_raw
-            )
+            non_coding_mcqs = extract_json_from_response(non_coding_mcqs_raw)
+
             if not isinstance(non_coding_mcqs, list):
-                print("[ERROR] Non-coding MCQs are not a list")
+                print(
+                    f"[ERROR] Non-coding MCQs are not a list. Type: {type(non_coding_mcqs)}"
+                )
+                print(f"[DEBUG] Raw output: {non_coding_mcqs_raw}")
                 non_coding_mcqs = []
             else:
-                # validate each question has the correct structure
-                valid_questions = []
-                for q in non_coding_mcqs:
-                    if all(
-                        key in q
-                        for key in [
-                            "question",
-                            "options",
-                            "answer",
-                            "difficulty",
-                            "category",
-                        ]
-                    ):
-                        valid_questions.append(q)
-                    else:
-                        print(f"[WARNING] Skipping invalid question structure: {q}")
-                non_coding_mcqs = valid_questions
+                non_coding_mcqs = validate_question_structure(non_coding_mcqs)
+
         except Exception as e:
             print("[ERROR] Failed non-coding MCQs:", e)
+            print(f"[DEBUG] Raw output: {non_coding_mcqs_raw}")
 
     all_questions = coding_mcqs + non_coding_mcqs
     print("[DEBUG] Total questions generated:", len(all_questions))

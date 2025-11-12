@@ -1,5 +1,3 @@
-# backend/services/skill_gap_analysis_service.py
-
 from models.firestore_models import (
     get_job_by_index,
     get_user_skills,
@@ -23,7 +21,9 @@ def compute_skill_gaps_for_all_jobs(user_test_id: str):
             {
                 "job_index": str(job["job_index"]),
                 "job_title": gap_result.get("job_title", job.get("job_title", "N/A")),
-                "gap_analysis": gap_result.get("gap_analysis", {}),
+                "gap_analysis": gap_result.get(
+                    "gap_analysis", {}
+                ),  #  knowledge_status and skill_status
             }
         )
 
@@ -78,7 +78,26 @@ def compare_and_save(user_test_id: str, job_match_id: str):
             "status": status,
         }
 
-    # Synchronous Firestore call
+    # ------------------------------------------------------------
+    # Synchronous Firestore Save: User–Job Skill Match
+    # ------------------------------------------------------------
+    # After computing the skill and knowledge gap between the user's profile
+    # and a specific job's requirements, this section stores the results
+    # permanently in Firestore.
+    #
+    # The function below creates a document in:
+    #   user_tests/{user_id}/job_skill_matches/{job_match_id}
+    #
+    # Each document represents a job comparison for a single user and includes:
+    #   • job_match_id       → The job’s unique index or identifier
+    #   • job_title          → The job’s title for readability
+    #   • skill_status       → Detailed comparison of required vs. user skill levels
+    #   • knowledge_status   → Detailed comparison of required vs. user knowledge levels
+    #
+    # Synchronous means the Firestore write operation is performed directly
+    # (blocking) without async/await. The function will not continue executing
+    # until the data is successfully written to the database.
+    # ------------------------------------------------------------
     set_user_job_skill_match(
         user_id=user_test_id,
         job_match_id=job_match_id,

@@ -111,6 +111,25 @@ def get_all_jobs():
     return jobs
 
 
+def get_job_by_index(job_index: str):
+    """
+    Fetch a single job match across all career recommendations by its job_index.
+    """
+    recs = db.collection("career_recommendations").stream()
+    for rec in recs:
+        collection = (
+            db.collection("career_recommendations")
+            .document(rec.id)
+            .collection("job_matches")
+        )
+        job_doc = collection.document(job_index).get()
+        if job_doc.exists:
+            job_data = job_doc.to_dict()
+            job_data["job_index"] = job_index
+            return job_data
+    return None
+
+
 def get_jobs_for_recommendation(rec_id: str):
     """
     Fetch all job matches for a specific recommendation.
@@ -141,25 +160,6 @@ def get_recommendation_id_by_user_test_id(user_test_id: str) -> str | None:
     )
     for doc in docs:
         return doc.id
-    return None
-
-
-def get_job_by_index(job_index: str):
-    """
-    Fetch a job across all career recommendations by its job_index.
-    """
-    recs = db.collection("career_recommendations").stream()
-    for rec in recs:
-        collection = (
-            db.collection("career_recommendations")
-            .document(rec.id)
-            .collection("job_matches")
-        )
-        job_doc = collection.document(job_index).get()
-        if job_doc.exists:
-            job_data = job_doc.to_dict()
-            job_data["job_index"] = job_index
-            return job_data
     return None
 
 
@@ -292,7 +292,7 @@ def add_report_chart(
 # -----------------------
 # UserSkillsKnowledge
 # -----------------------
-def add_user_skills(user_id: str, skills: dict, knowledge: dict):
+def add_user_skills_knowledge(user_id: str, skills: dict, knowledge: dict):
     """
     Add or update skills and knowledge for a user_test document.
     """

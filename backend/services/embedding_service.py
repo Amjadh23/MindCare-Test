@@ -13,7 +13,7 @@ from services.scoring_service import calculate_score
 from models.firestore_models import (
     get_follow_up_answers_by_user,
     get_generated_questions,
-    add_user_skills,
+    add_user_skills_knowledge,
 )
 
 # -----------------------------
@@ -197,7 +197,7 @@ def analyze_user_skills_knowledge(user_test_id: str) -> Dict[str, Any]:
         knowledge_dict = result.get("knowledge", {})
 
         try:
-            add_user_skills(
+            add_user_skills_knowledge(
                 user_id=str(user_test_id), skills=skills_dict, knowledge=knowledge_dict
             )
             print(

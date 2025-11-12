@@ -2,18 +2,16 @@ import 'package:flutter/material.dart';
 import '../../models/user_responses.dart';
 import '../skill_reflection_test/skill_reflection_screen.dart';
 
-class CourseworkExperienceScreen extends StatefulWidget {
+class CourseworkExperience extends StatefulWidget {
   final UserResponses userResponse;
 
-  const CourseworkExperienceScreen({super.key, required this.userResponse});
+  const CourseworkExperience({super.key, required this.userResponse});
 
   @override
-  State<CourseworkExperienceScreen> createState() =>
-      _CourseworkExperienceScreenState();
+  State<CourseworkExperience> createState() => _CourseworkExperienceState();
 }
 
-class _CourseworkExperienceScreenState
-    extends State<CourseworkExperienceScreen> {
+class _CourseworkExperienceState extends State<CourseworkExperience> {
   String? selectedExperience;
 
   final List<String> experiences = [
@@ -55,6 +53,7 @@ class _CourseworkExperienceScreenState
           ElevatedButton(
             onPressed: () {
               if (selectedExperience != null) {
+                // save selected coursework experience to response object
                 widget.userResponse.courseworkExperience = selectedExperience!;
                 Navigator.push(
                   context,

@@ -1,49 +1,50 @@
 import 'package:flutter/material.dart';
 import '../../models/user_responses.dart';
-import 'major_screen.dart';
+import 'education_major.dart';
 
-class ThesisTopicScreen extends StatefulWidget {
+class Cgpa extends StatefulWidget {
   final UserResponses userResponse;
 
-  const ThesisTopicScreen({super.key, required this.userResponse});
+  const Cgpa({super.key, required this.userResponse});
 
   @override
-  State<ThesisTopicScreen> createState() => _ThesisTopicScreenState();
+  State<Cgpa> createState() => _CgpaState();
 }
 
-class _ThesisTopicScreenState extends State<ThesisTopicScreen> {
-  final TextEditingController thesisTopicController = TextEditingController();
+class _CgpaState extends State<Cgpa> {
+  final TextEditingController cgpaController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Thesis Topic")),
+      appBar: AppBar(title: const Text("Current CGPA")),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             const Text(
-              "What is your thesis topic?",
+              "What is your current CGPA?",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             TextField(
-              controller: thesisTopicController,
+              controller: cgpaController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                hintText: "Enter your thesis topic",
+                hintText: "Enter your CGPA",
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                if (thesisTopicController.text.isNotEmpty) {
-                  widget.userResponse.thesisTopic = thesisTopicController.text;
+                if (cgpaController.text.isNotEmpty) {
+                  // save CGPA to response object
+                  widget.userResponse.cgpa = cgpaController.text;
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
-                          MajorScreen(userResponse: widget.userResponse),
+                          EducationMajor(userResponse: widget.userResponse),
                     ),
                   );
                 }

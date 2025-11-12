@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'education_level_screen.dart';
+import 'education_level.dart';
 import '../../models/user_responses.dart';
 
 class EducationalBackgroundTestScreen extends StatelessWidget {
@@ -40,7 +40,7 @@ class EducationalBackgroundTestScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
-                          EducationLevelScreen(userResponse: userResponse),
+                          EducationLevel(userResponse: userResponse),
                     ),
                   );
                 },

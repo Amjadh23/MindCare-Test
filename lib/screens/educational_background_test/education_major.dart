@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import '../../models/user_responses.dart';
-import 'programming_languages_screen.dart';
+import 'programming_languages.dart';
 
-class MajorScreen extends StatefulWidget {
+class EducationMajor extends StatefulWidget {
   final UserResponses userResponse;
 
-  const MajorScreen({super.key, required this.userResponse});
+  const EducationMajor({super.key, required this.userResponse});
 
   @override
-  State<MajorScreen> createState() => _MajorScreenState();
+  State<EducationMajor> createState() => _EducationMajorState();
 }
 
-class _MajorScreenState extends State<MajorScreen> {
+class _EducationMajorState extends State<EducationMajor> {
   String? selectedMajor;
 
   final List<String> majors = [
@@ -59,12 +59,13 @@ class _MajorScreenState extends State<MajorScreen> {
           ElevatedButton(
             onPressed: () {
               if (selectedMajor != null) {
+                // save selected education major to response object
                 widget.userResponse.major = selectedMajor!;
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ProgrammingLanguagesScreen(
-                        userResponse: widget.userResponse),
+                    builder: (context) =>
+                        ProgrammingLanguages(userResponse: widget.userResponse),
                   ),
                 );
               }

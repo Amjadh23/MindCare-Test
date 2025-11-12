@@ -1,19 +1,19 @@
-import 'package:code_map/screens/educational_background_test/thesis_topic_screen.dart';
+import 'package:code_map/screens/educational_background_test/thesis_topic.dart';
 import 'package:flutter/material.dart';
 import '../../models/user_responses.dart';
-import 'cgpa_screen.dart';
+import 'cgpa.dart';
 
-class EducationLevelScreen extends StatefulWidget {
+class EducationLevel extends StatefulWidget {
   final UserResponses userResponse;
 
-  const EducationLevelScreen({super.key, required this.userResponse});
+  const EducationLevel({super.key, required this.userResponse});
 
   @override
-  State<EducationLevelScreen> createState() => _EducationLevelScreenState();
+  State<EducationLevel> createState() => _EducationLevelState();
 }
 
-class _EducationLevelScreenState extends State<EducationLevelScreen> {
-  String? selectedLevel;
+class _EducationLevelState extends State<EducationLevel> {
+  String? selectedLevel; // currently selected education level
 
   final List<String> levels = [
     "SPM (Sijil Pelajaran Malaysia)",
@@ -46,7 +46,7 @@ class _EducationLevelScreenState extends State<EducationLevelScreen> {
                       selectedLevel == level ? Colors.lightGreenAccent : null,
                   onTap: () {
                     setState(() {
-                      selectedLevel = level;
+                      selectedLevel = level; // update selection
                     });
                   },
                 );
@@ -56,21 +56,26 @@ class _EducationLevelScreenState extends State<EducationLevelScreen> {
           ElevatedButton(
             onPressed: () {
               if (selectedLevel != null) {
+                // save selected education level to response object
                 widget.userResponse.educationLevel = selectedLevel!;
+
+                // route to different screens based on selection
+                // if Doctorate, go to ThesisTopicScreen
                 if (selectedLevel == "Doctorate (PhD)") {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
-                          ThesisTopicScreen(userResponse: widget.userResponse),
+                          ThesisTopic(userResponse: widget.userResponse),
                     ),
                   );
                 } else {
+                  // else, go to CgpaScreen
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
-                          CgpaScreen(userResponse: widget.userResponse),
+                          Cgpa(userResponse: widget.userResponse),
                     ),
                   );
                 }

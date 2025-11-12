@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 import '../../models/user_responses.dart';
-import 'coursework_screen.dart';
+import 'coursework_experience.dart';
 
-class ProgrammingLanguagesScreen extends StatefulWidget {
+class ProgrammingLanguages extends StatefulWidget {
   final UserResponses userResponse; // <-- changed
 
-  const ProgrammingLanguagesScreen({super.key, required this.userResponse});
+  const ProgrammingLanguages({super.key, required this.userResponse});
 
   @override
-  State<ProgrammingLanguagesScreen> createState() =>
-      _ProgrammingLanguagesScreenState();
+  State<ProgrammingLanguages> createState() => _ProgrammingLanguagesState();
 }
 
-class _ProgrammingLanguagesScreenState
-    extends State<ProgrammingLanguagesScreen> {
+class _ProgrammingLanguagesState extends State<ProgrammingLanguages> {
   final List<String> languages = [
     "Python",
     "Java",
@@ -43,6 +41,7 @@ class _ProgrammingLanguagesScreenState
     "None"
   ];
 
+  // tracks user's selected languages
   final List<String> selectedLanguages = [];
 
   @override
@@ -64,11 +63,13 @@ class _ProgrammingLanguagesScreenState
                 final isSelected = selectedLanguages.contains(lang);
                 return ListTile(
                   title: Text(lang),
+                  // show checkmark for selected languages
                   trailing: isSelected
                       ? const Icon(Icons.check, color: Colors.green)
                       : null,
                   onTap: () {
                     setState(() {
+                      // toggle selection: add if not selected, remove if already selecte
                       isSelected
                           ? selectedLanguages.remove(lang)
                           : selectedLanguages.add(lang);
@@ -80,13 +81,14 @@ class _ProgrammingLanguagesScreenState
           ),
           ElevatedButton(
             onPressed: () {
+              // save selected languages to user response object
               widget.userResponse.programmingLanguages =
                   List.from(selectedLanguages);
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => CourseworkExperienceScreen(
-                      userResponse: widget.userResponse),
+                  builder: (context) =>
+                      CourseworkExperience(userResponse: widget.userResponse),
                 ),
               );
             },

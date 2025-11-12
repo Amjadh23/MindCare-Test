@@ -113,6 +113,39 @@ def get_all_jobs():
     return jobs
 
 
+def get_jobs_for_recommendation(rec_id: str):
+    """
+    Fetch all job matches for a specific recommendation.
+    """
+    jobs = []
+    collection = (
+        db.collection("career_recommendations")
+        .document(rec_id)
+        .collection("job_matches")
+    )
+    for job_doc in collection.stream():
+        job_data = job_doc.to_dict()
+        job_data["job_index"] = job_doc.id
+        jobs.append(job_data)
+    return jobs
+
+
+def get_recommendation_id_by_user_test_id(user_test_id: str) -> str | None:
+    """
+    Retrieve the recommendation document ID for a given user_test_id.
+    Returns None if not found.
+    """
+    docs = (
+        db.collection("career_recommendations")
+        .where("user_test_id", "==", user_test_id)
+        .limit(1)
+        .stream()
+    )
+    for doc in docs:
+        return doc.id
+    return None
+
+
 def get_job_by_index(job_index: str):
     """
     Fetch a job across all career recommendations by its job_index.

@@ -27,7 +27,9 @@ def compute_skill_gaps_for_all_jobs(user_test_id: str):
             }
         )
 
-    return results
+    return (
+        results  # pass computed gap analysis results back to the API route for response
+    )
 
 
 def compare_and_save(user_test_id: str, job_match_id: str):

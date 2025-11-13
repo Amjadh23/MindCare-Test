@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import '../../../../models/user_responses.dart';
 import '../../../../services/api_service.dart';
 import 'follow_up_test.dart';

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/user_responses.dart';
+import '../../services/api_service.dart';
 import '../follow_up_test/follow_up_screen.dart';
 
 class CareerGoals extends StatefulWidget {
@@ -14,6 +15,7 @@ class CareerGoals extends StatefulWidget {
 class _CareerGoalsState extends State<CareerGoals> {
   late TextEditingController _controller;
   int _charCount = 0;
+  bool _isSubmitting = false; // add loading state
 
   @override
   void initState() {
@@ -34,7 +36,9 @@ class _CareerGoalsState extends State<CareerGoals> {
     super.dispose();
   }
 
-  void _onCompletePressed() {
+  void _onCompletePressed() async {
+    if (_isSubmitting) return; // prevent multiple submissions
+
     final text = _controller.text.trim(); // remove leading/trailing spaces
     if (text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -56,14 +60,38 @@ class _CareerGoalsState extends State<CareerGoals> {
       );
       return;
     }
-    widget.userResponse.careerGoals = _controller.text;
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => FollowUpScreen(userResponse: widget.userResponse),
-      ),
-    );
+    setState(() {
+      _isSubmitting = true; // set loading state
+    });
+
+    try {
+      // save career goals to user response
+      widget.userResponse.careerGoals = _controller.text;
+
+      // submit test -> backend creates userTestId
+      final userTestId = await ApiService.submitTest(widget.userResponse);
+
+      // navigate to FollowUpScreen with the userTestId
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FollowUpScreen(
+            userResponse: widget.userResponse,
+            userTestId: userTestId, // Pass the userTestId
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error submitting test: ${e.toString()}"),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } finally {
+      setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -120,10 +148,12 @@ class _CareerGoalsState extends State<CareerGoals> {
             ),
 
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _onCompletePressed,
-              child: const Text("Complete"),
-            ),
+            _isSubmitting
+                ? const CircularProgressIndicator()
+                : ElevatedButton(
+                    onPressed: _onCompletePressed,
+                    child: const Text("Complete"),
+                  ),
           ],
         ),
       ),

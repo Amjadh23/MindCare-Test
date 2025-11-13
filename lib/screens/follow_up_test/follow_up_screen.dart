@@ -6,8 +6,10 @@ import 'follow_up_test.dart';
 
 class FollowUpScreen extends StatefulWidget {
   final UserResponses userResponse;
+  final String userTestId;
 
-  const FollowUpScreen({super.key, required this.userResponse});
+  const FollowUpScreen(
+      {super.key, required this.userResponse, required this.userTestId});
 
   @override
   State<FollowUpScreen> createState() => _FollowUpScreenState();
@@ -50,7 +52,7 @@ class _FollowUpScreenState extends State<FollowUpScreen> {
       _showWarning = false;
     });
 
-    // Show loading dialog
+    // show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -66,7 +68,7 @@ class _FollowUpScreenState extends State<FollowUpScreen> {
               Text(
                 _isBackendReady
                     ? "Generating your questions..."
-                    : "First-time setup...\nThis may take 20-30 seconds",
+                    : "Initializing assessment system",
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 16),
               ),
@@ -83,15 +85,12 @@ class _FollowUpScreenState extends State<FollowUpScreen> {
     );
 
     try {
-      // Submit test -> backend creates userTestId
-      final userTestId = await ApiService.submitTest(widget.userResponse);
-
-      // Generate follow-up questions
+      // generate follow-up questions
       final questions = await ApiService.generateQuestions(
         skillReflection: widget.userResponse.skillReflection,
         thesisFindings: widget.userResponse.thesisFindings,
         careerGoals: widget.userResponse.careerGoals,
-        userTestId: userTestId,
+        userTestId: widget.userTestId, // use the passed userTestId
       );
 
       print("Questions received: $questions");
@@ -103,7 +102,7 @@ class _FollowUpScreenState extends State<FollowUpScreen> {
           context,
           MaterialPageRoute(
             builder: (_) => FollowUpTest(
-              userTestId: userTestId,
+              userTestId: widget.userTestId,
               userResponse: widget.userResponse,
               questions: questions,
             ),

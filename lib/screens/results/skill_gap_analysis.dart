@@ -145,7 +145,9 @@ class _SkillGapAnalysisScreenState extends State<SkillGapAnalysisScreen> {
                           style: TextStyle(
                             color: status == 'Achieved'
                                 ? Colors.green
-                                : Colors.red,
+                                : status == 'Weak'
+                                    ? Colors.amber
+                                    : Colors.red,
                             fontWeight: FontWeight.bold,
                           ),
                         ),

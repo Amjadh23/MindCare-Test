@@ -24,6 +24,7 @@ class _FollowUpTestState extends State<FollowUpTest> {
   int _currentIndex = 0;
   String? _selectedOption;
   final FollowUpResponses followUpResponses = FollowUpResponses(responses: []);
+  bool _isSubmitting = false;
 
   // save or update the current question's answer
   void _saveCurrentAnswer() {
@@ -75,27 +76,43 @@ class _FollowUpTestState extends State<FollowUpTest> {
       _goToQuestion(_currentIndex + 1);
     } else {
       // last question -> submit all answers
-      try {
-        await ApiService.submitFollowUpResponses(responses: followUpResponses);
-        if (!mounted) return;
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (_) => CareerRecommendationsScreen(
-              userTestId: widget.userTestId,
-            ),
+      await _submitAllAnswers();
+    }
+  }
+
+  // separate method to submit all answers
+  Future<void> _submitAllAnswers() async {
+    setState(() {
+      _isSubmitting = true; // start loading
+    });
+
+    try {
+      await ApiService.submitFollowUpResponses(responses: followUpResponses);
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CareerRecommendationsScreen(
+            userTestId: widget.userTestId,
           ),
-          (route) => false,
+        ),
+        (route) => false,
+      );
+    } catch (e) {
+      print("Error submitting: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Failed to submit answers. Please try again."),
+          ),
         );
-      } catch (e) {
-        print("Error submitting: $e");
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Failed to submit answers. Please try again."),
-            ),
-          );
-        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false; // stop loading regardless of success/failure
+        });
       }
     }
   }
@@ -199,6 +216,11 @@ class _FollowUpTestState extends State<FollowUpTest> {
 
     return WillPopScope(
       onWillPop: () async {
+        // prevent going back while submitting
+        if (_isSubmitting) {
+          return false;
+        }
+
         if (_currentIndex > 0) {
           _goToQuestion(_currentIndex - 1);
           return false;
@@ -259,11 +281,14 @@ class _FollowUpTestState extends State<FollowUpTest> {
                             title: Text(option),
                             value: option,
                             groupValue: _selectedOption,
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedOption = value;
-                              });
-                            },
+                            onChanged: _isSubmitting
+                                ? null
+                                : (value) {
+                                    // disable while submitting
+                                    setState(() {
+                                      _selectedOption = value;
+                                    });
+                                  },
                           );
                         }).toList(),
                       ),
@@ -275,14 +300,30 @@ class _FollowUpTestState extends State<FollowUpTest> {
               Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: ElevatedButton(
-                  onPressed: _nextQuestion,
+                  onPressed: _isSubmitting ? null : _nextQuestion,
                   style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50)),
-                  child: Text(
-                    _currentIndex == widget.questions.length - 1
-                        ? "Complete"
-                        : "Next Question",
+                    minimumSize: const Size.fromHeight(50),
                   ),
+                  child: _isSubmitting
+                      ? const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          _currentIndex == widget.questions.length - 1
+                              ? "Complete"
+                              : "Next Question",
+                        ),
                 ),
               ),
             ],

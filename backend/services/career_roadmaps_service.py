@@ -4,6 +4,7 @@ import re
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from models.firestore_models import (
+    get_recommendation_id_by_user_test_id,
     get_user_job_skill_matches,
     create_career_roadmap,
     get_career_roadmap,
@@ -30,31 +31,38 @@ def generate_roadmap_with_openai(skill_status: dict, knowledge_status: dict) -> 
     """
 
     prompt = f"""
-    Create a career roadmap based on skill gap analysis:
+    Create a structured career roadmap based on skill gap analysis:
     
     Skill Status: {skill_status}
     Knowledge Status: {knowledge_status}
     
     Analyze the gaps between user's current level and required level for each skill/knowledge.
-    Create a learning roadmap to bridge these gaps.
+    Create a hierarchical roadmap with main topics and specific subtopics.
     
     Return ONLY a JSON object with this exact structure:
     {{
         "topics": {{
-            "Skill Name 1": "Beginner|Intermediate|Expert|Advanced",
-            "Skill Name 2": "Beginner|Intermediate|Expert|Advanced"
+            "Main Topic 1": "Beginner|Intermediate|Expert|Advanced",
+            "Main Topic 2": "Beginner|Intermediate|Expert|Advanced"
         }},
         "sub_topics": {{
-            "Skill Name 1": ["Relevant knowledge area 1", "Relevant knowledge area 2"],
-            "Skill Name 2": ["Relevant knowledge area 1", "Relevant knowledge area 2"]
+            "Main Topic 1": [
+                "Specific Subtopic 1",
+                "Specific Subtopic 2", 
+            ],
+            "Main Topic 2": [
+                "Specific Subtopic 1",
+                "Specific Subtopic 2",
+            ]
         }}
     }}
     
     Rules:
     - Focus on skills/knowledge where status is "Missing" or user_level is lower than required_level
-    - Assign appropriate learning levels based on the gap
-    - Make sub_topics specific, actionable learning objectives
-    - Return ONLY the JSON, no other text
+    - Create appropriate subtopics based on topic scope
+    - Subtopic format: Concise, technical concepts only (like "React Hooks", "State Management", "Component Lifecycle")
+    - Assign appropriate proficiency levels based on the gap analysis
+    - Return ONLY the JSON
     """
 
     try:
@@ -92,34 +100,68 @@ def get_fallback_roadmap(skill_status: dict, knowledge_status: dict) -> dict:
             ):
                 skills_to_improve.append(skill_name)
 
-    # create simple roadmap structure
+    # create simple roadmap structure with proper subtopics
     topics = {}
     sub_topics = {}
 
     for skill in skills_to_improve[:5]:  # limit to top 5 skills
         topics[skill] = "Intermediate"
-        sub_topics[skill] = [
-            f"Learn {skill} fundamentals",
-            f"Practice {skill} applications",
-            f"Master advanced {skill} techniques",
-        ]
+
+        # generate relevant technical subtopics based on the skill
+        if "react" in skill.lower() or "frontend" in skill.lower():
+            sub_topics[skill] = [
+                "React Components",
+                "Hooks and State Management",
+                "React Router",
+                "Context API",
+                "Performance Optimization",
+            ]
+        elif "javascript" in skill.lower():
+            sub_topics[skill] = [
+                "ES6+ Features",
+                "Async/Await Patterns",
+                "DOM Manipulation",
+                "Event Handling",
+                "Modern JS Syntax",
+            ]
+        elif "git" in skill.lower() or "version" in skill.lower():
+            sub_topics[skill] = [
+                "Git Fundamentals",
+                "Branching Strategies",
+                "Merge Conflicts",
+                "GitHub/GitLab Workflows",
+                "Version Control Best Practices",
+            ]
+        else:
+            # generic fallback with technical subtopics
+            sub_topics[skill] = [
+                f"{skill} Fundamentals",
+                f"Advanced {skill} Concepts",
+                f"{skill} Best Practices",
+                f"{skill} Tools and Ecosystem",
+                f"{skill} Implementation Patterns",
+            ]
 
     # add fallback if no skills found
     if not topics:
         topics = {
-            "Technical Skills": "Intermediate",
-            "Professional Development": "Beginner",
+            "Frontend Development": "Intermediate",
+            "Backend Development": "Beginner",
         }
         sub_topics = {
-            "Technical Skills": [
-                "Learn core technical concepts",
-                "Build practical projects",
-                "Master advanced techniques",
+            "Frontend Development": [
+                "JavaScript ES6+",
+                "React/Vue Framework",
+                "State Management",
+                "CSS Frameworks",
+                "Build Tools",
             ],
-            "Professional Development": [
-                "Improve communication skills",
-                "Develop teamwork abilities",
-                "Enhance problem-solving",
+            "Backend Development": [
+                "Server Architecture",
+                "API Design",
+                "Database Management",
+                "Authentication Systems",
+                "Deployment Strategies",
             ],
         }
 
@@ -137,6 +179,12 @@ def compute_career_roadmaps(user_test_id: str) -> dict:
 
         if not job_skill_matches:
             return {"error": "No job skill matches found for this user."}
+
+        # Get the recommendation document ID for this user_test_id
+        recommendation_id = get_recommendation_id_by_user_test_id(user_test_id)
+
+        if not recommendation_id:
+            return {"error": "No recommendation found for this user test ID."}
 
         # generate roadmap for each job
         generated_roadmaps = {}
@@ -156,7 +204,7 @@ def compute_career_roadmaps(user_test_id: str) -> dict:
             create_career_roadmap(
                 user_test_id=user_test_id,
                 job_index=job_match_id,
-                rec_id=job_match_id,  # Using job_match_id as rec_id for reference
+                rec_id=recommendation_id,
                 topics=roadmap_content["topics"],
                 sub_topics=roadmap_content["sub_topics"],
             )

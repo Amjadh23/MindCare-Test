@@ -489,24 +489,36 @@ class _ReportScreenState extends State<ReportScreen> {
                         ),
                         const SizedBox(height: 20),
                       ],
-                      // Button to Career Roadmap Screen
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => CareerRoadmap(
+                      // button to Career Roadmap Screen
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            ElevatedButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => CareerRoadmap(
                                       userTestId: widget.userTestId,
-                                      jobIndex: widget.jobIndex)));
-                        },
-                        child: const Text("View your Career Roadmap"),
-                      ),
-                      const SizedBox(height: 8),
-                      OutlinedButton(
-                        onPressed: () {
-                          // don't know yet :3
-                        },
-                        child: const Text("Complete"),
+                                      jobIndex: widget.jobIndex,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: const Text(
+                                  "View your Personalized Career Roadmap"),
+                            ),
+                            const SizedBox(height: 8),
+                            OutlinedButton(
+                              onPressed: () {
+                                // don't know yet :3
+                              },
+                              child: const Text("Complete"),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),

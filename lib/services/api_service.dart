@@ -95,6 +95,36 @@ class ApiService {
     }
   }
 
+  // retrieve generated follow-up questions
+  static Future<List<Map<String, dynamic>>> getGeneratedQuestions({
+    required String userTestId,
+  }) async {
+    final url = Uri.parse("$baseUrl/get-generated-questions/$userTestId");
+
+    final response = await http.get(url);
+
+    print("Raw follow-up questions response body: ${response.body}");
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+
+      if (decoded is Map && decoded.containsKey('questions')) {
+        final rawQuestions = decoded['questions'];
+        if (rawQuestions is List) {
+          return rawQuestions
+              .where((q) => q != null && q is Map)
+              .map((q) => Map<String, dynamic>.from(q))
+              .toList();
+        }
+      }
+
+      if (decoded.containsKey('error')) throw Exception(decoded['error']);
+      throw Exception("Unexpected response format");
+    } else {
+      throw Exception("Error retrieving follow-up questions: ${response.body}");
+    }
+  }
+
   // send follow-up answers to backend
   static Future<void> submitFollowUpResponses({
     required FollowUpResponses responses,

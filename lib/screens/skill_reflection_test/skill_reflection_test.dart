@@ -98,7 +98,7 @@ class _SkillReflectionTestState extends State<SkillReflectionTest> {
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   hintText:
-                      "In your own words, describe the skills you are most confident in. Mention any tools, programming languages, or technical concepts you are familiar with. You may also include soft skills, previous projects, or anything you believe showcases your strengths.",
+                      "In your own words, describe the skills you are most confident in. Mention any tools, programming languages you haven't mentioned previously, or technical concepts you are familiar with. You may also include soft skills, previous projects, or anything you believe showcases your strengths.",
                   hintMaxLines: 10,
                 ),
                 minLines: 20,

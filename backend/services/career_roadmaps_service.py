@@ -32,37 +32,43 @@ def generate_roadmap_with_openai(skill_status: dict, knowledge_status: dict) -> 
 
     prompt = f"""
     Create a structured career roadmap based on skill gap analysis:
-    
-    Skill Status: {skill_status}
-    Knowledge Status: {knowledge_status}
+
+    Input Data:
+    - Skill Status: {skill_status}
+    - Knowledge Status: {knowledge_status}
+
+    Task:
+    Identify all skills and knowledge areas where:
+    - status == "Missing", AND
+    - user_level < required_level
     
     Analyze the gaps between user's current level and required level for each skill/knowledge.
-    Create a hierarchical roadmap with main topics and specific subtopics.
+    Create a hierarchical roadmap with main topics and subtopics.
     
     Return ONLY a JSON object with this exact structure:
     {{
         "topics": {{
-            "Main Topic 1": "Beginner|Intermediate|Expert|Advanced",
-            "Main Topic 2": "Beginner|Intermediate|Expert|Advanced"
+            "Main Topic 1": "Beginner/Intermediate/Expert/Advanced",
+            "Main Topic 2": "Beginner/Intermediate/Expert/Advanced"
         }},
         "sub_topics": {{
             "Main Topic 1": [
-                "Specific Subtopic 1",
-                "Specific Subtopic 2", 
+                "Subtopic 1",
+                "Subtopic 2", 
             ],
             "Main Topic 2": [
-                "Specific Subtopic 1",
-                "Specific Subtopic 2",
+                "Subtopic 1",
+                "Subtopic 2",
             ]
         }}
     }}
     
-    Rules:
-    - Focus on skills/knowledge where status is "Missing" or user_level is lower than required_level
-    - Create appropriate subtopics based on topic scope
-    - Subtopic format: Concise, technical concepts only (like "React Hooks", "State Management", "Component Lifecycle")
-    - Assign appropriate proficiency levels based on the gap analysis
-    - Return ONLY the JSON
+    For each affected skill/knowledge area, generate:
+    1. A Main Topic (professional, concise, technical)
+    2. An appropriate proficiency level (Beginner / Intermediate / Advanced / Expert) ONLY
+    3. Subtopics that fully cover what the user must learn
+        - Subtopics must be: concise, technical, non-generic, actionable
+        - Cover the complete domain but avoid unnecessary depth
     """
 
     try:
@@ -73,99 +79,9 @@ def generate_roadmap_with_openai(skill_status: dict, knowledge_status: dict) -> 
         if json_match:
             roadmap_data = json.loads(json_match.group())
             return roadmap_data
-        else:
-            # Fallback if no JSON found
-            return get_fallback_roadmap(skill_status, knowledge_status)
 
     except Exception as e:
         print(f"OpenAI API error: {e}")
-        return get_fallback_roadmap(skill_status, knowledge_status)
-
-
-def get_fallback_roadmap(skill_status: dict, knowledge_status: dict) -> dict:
-    """
-    Create a simple fallback roadmap when OpenAI fails.
-    """
-    # extract skills that need improvement
-    skills_to_improve = []
-
-    for skill_name, skill_data in skill_status.items():
-        if isinstance(skill_data, dict):
-            status = skill_data.get("status", "")
-            required_level = skill_data.get("required_level", "")
-            user_level = skill_data.get("user_level", "")
-
-            if status == "Missing" or (
-                user_level and required_level and user_level != required_level
-            ):
-                skills_to_improve.append(skill_name)
-
-    # create simple roadmap structure with proper subtopics
-    topics = {}
-    sub_topics = {}
-
-    for skill in skills_to_improve[:5]:  # limit to top 5 skills
-        topics[skill] = "Intermediate"
-
-        # generate relevant technical subtopics based on the skill
-        if "react" in skill.lower() or "frontend" in skill.lower():
-            sub_topics[skill] = [
-                "React Components",
-                "Hooks and State Management",
-                "React Router",
-                "Context API",
-                "Performance Optimization",
-            ]
-        elif "javascript" in skill.lower():
-            sub_topics[skill] = [
-                "ES6+ Features",
-                "Async/Await Patterns",
-                "DOM Manipulation",
-                "Event Handling",
-                "Modern JS Syntax",
-            ]
-        elif "git" in skill.lower() or "version" in skill.lower():
-            sub_topics[skill] = [
-                "Git Fundamentals",
-                "Branching Strategies",
-                "Merge Conflicts",
-                "GitHub/GitLab Workflows",
-                "Version Control Best Practices",
-            ]
-        else:
-            # generic fallback with technical subtopics
-            sub_topics[skill] = [
-                f"{skill} Fundamentals",
-                f"Advanced {skill} Concepts",
-                f"{skill} Best Practices",
-                f"{skill} Tools and Ecosystem",
-                f"{skill} Implementation Patterns",
-            ]
-
-    # add fallback if no skills found
-    if not topics:
-        topics = {
-            "Frontend Development": "Intermediate",
-            "Backend Development": "Beginner",
-        }
-        sub_topics = {
-            "Frontend Development": [
-                "JavaScript ES6+",
-                "React/Vue Framework",
-                "State Management",
-                "CSS Frameworks",
-                "Build Tools",
-            ],
-            "Backend Development": [
-                "Server Architecture",
-                "API Design",
-                "Database Management",
-                "Authentication Systems",
-                "Deployment Strategies",
-            ],
-        }
-
-    return {"topics": topics, "sub_topics": sub_topics}
 
 
 def compute_career_roadmaps(user_test_id: str) -> dict:

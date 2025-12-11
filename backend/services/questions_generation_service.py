@@ -68,11 +68,11 @@ coding_questions_prompt = PromptTemplate(
 
 non_coding_questions_prompt = PromptTemplate(
     input_variables=["topics"],
-    template="""Generate 10 non-coding conceptual questions based on: '{topics}'.
+    template="""Generate 5 non-coding conceptual questions based on: '{topics}'.
 - Use formal academic language.
 - Include definitions, theory, practical applications, higher-order thinking.
 - Ensure all topics represented at least once.
-- Difficulty ratio: 1 Easy, 3 Medium, 6 Hard.
+- Difficulty ratio: 1 Easy, 1 Medium, 2 Hard.
 - Return as JSON array like:
 [{{"question": "...", "difficulty": "Easy/Medium/Hard", "category": "Non-coding"}}]""",
 )

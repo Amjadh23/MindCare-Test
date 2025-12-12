@@ -37,17 +37,33 @@ class _CgpaState extends State<Cgpa> {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                if (cgpaController.text.isNotEmpty) {
-                  // save CGPA to response object
-                  widget.userResponse.cgpa = cgpaController.text;
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          EducationMajor(userResponse: widget.userResponse),
-                    ),
+                String cgpa = cgpaController.text.trim();
+                if (cgpa.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Please enter your CGPA")),
                   );
+                  return;
                 }
+
+                double? cgpaValue = double.tryParse(cgpa);
+                if (cgpaValue == null || cgpaValue < 0 || cgpaValue > 4.0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text(
+                            "Please enter a valid CGPA between 0 and 4.0")),
+                  );
+                  return;
+                }
+
+                // save CGPA to response object
+                widget.userResponse.cgpa = cgpa;
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        EducationMajor(userResponse: widget.userResponse),
+                  ),
+                );
               },
               child: const Text("Next"),
             ),

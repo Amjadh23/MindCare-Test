@@ -208,26 +208,19 @@ def generate_questions(skill_reflection: str, thesis_findings: str, career_goals
     coding_questions = []
     total_coding_questions = 5
     if language_list:
-        num_languages = len(language_list)
-        base_count = total_coding_questions // num_languages
-        remainder = total_coding_questions % num_languages
-        questions_per_language = {lang: base_count for lang in language_list}
-        for i in range(remainder):
-            questions_per_language[language_list[i]] += 1
-        for lang, count in questions_per_language.items():
-            if count == 0:
-                continue
-            try:
-                coding_json = coding_questions_chain.run(
-                    {"topics": topics, "lang": lang, "count": count}
+        # merge all languages into one string for prompt
+        langs_str = ", ".join(language_list)
+        try:
+            coding_json = coding_questions_chain.run(
+                {"topics": topics, "lang": langs_str, "count": total_coding_questions}
+            )
+            if isinstance(coding_json, list):
+                coding_questions.extend(coding_json)
+                print(
+                    f"[SUCCESS] Generated {len(coding_json)} coding questions for {langs_str}"
                 )
-                if isinstance(coding_json, list):
-                    coding_questions.extend(coding_json)
-                    print(
-                        f"[SUCCESS] Generated {len(coding_json)} questions for {lang}"
-                    )
-            except Exception as e:
-                print(f"[ERROR] Failed coding questions for {lang}:", e)
+        except Exception as e:
+            print(f"[ERROR] Failed coding questions for {langs_str}:", e)
 
     # generate non-coding questions
     try:

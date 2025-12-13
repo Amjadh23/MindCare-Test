@@ -1,14 +1,20 @@
+import 'package:code_map/screens/welcome_page.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'services/api_service.dart';
-import 'screens/educational_background_test/educational_background_screen.dart';
 
 bool isBackendReady = false;
 
 Future<void> main() async {
-  // load environment variables before the app starts
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // load environment variables
   await dotenv.load(fileName: 'assets/.env');
+
+  // initialize Firebase
+  await Firebase.initializeApp();
 
   // pre-warm backend
   await _preWarmBackend();
@@ -41,7 +47,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       title: 'CodeMap: Navigate Your IT Future',
-      home: EducationalBackgroundTestScreen(),
+      home: WelcomePage(),
     );
   }
 }

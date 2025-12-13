@@ -53,6 +53,8 @@ backend/*.pyc
 .env
 backend/.env
 
-# Firebase / Service Account
+# Firebase / Google service accounts
 serviceAccountKey.json
 lib/firebase_options.dart
+firebase.json
+android/app/google-services.json

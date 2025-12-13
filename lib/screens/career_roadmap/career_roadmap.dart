@@ -1,3 +1,4 @@
+import 'package:code_map/screens/user/home_screen.dart';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 
@@ -690,15 +691,24 @@ class _CareerRoadmapState extends State<CareerRoadmap> {
 
   Widget _buildLevelCard(String levelName, Map<String, dynamic> topicsMap,
       int levelIndex, int totalLevels) {
-    // Different colors for different levels
-    final levelColors = [
-      const Color(0xFF4CAF50), // Beginner - Green
-      const Color(0xFF2196F3), // Intermediate - Blue
-      const Color(0xFFFF9800), // Advanced - Orange
-      const Color(0xFFF44336), // Expert - Red
-    ];
+    Color _getLevelColor(String levelName) {
+      switch (levelName.toLowerCase()) {
+        case 'beginner':
+        case 'basic': // handle both 'Beginner' and 'Basic'
+          return const Color(0xFF4CAF50); // Green
+        case 'intermediate':
+          return const Color(0xFF2196F3); // Blue
+        case 'advanced':
+          return const Color(0xFFFF9800); // Orange/Yellow
+        case 'expert':
+          return const Color(0xFFF44336); // Red
+        default:
+          // Fallback color based on position
+          return const Color(0xFF4CAF50);
+      }
+    }
 
-    final backgroundColor = levelColors[levelIndex % levelColors.length];
+    final backgroundColor = _getLevelColor(levelName);
 
     return Container(
       decoration: BoxDecoration(
@@ -997,39 +1007,75 @@ class _CareerRoadmapState extends State<CareerRoadmap> {
           ),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Your Career Journey',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                color: Colors.black87,
-                letterSpacing: 0.2,
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Your Career Journey',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black87,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Select a career path and follow the learning roadmap',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildJobSelector(),
+                  const SizedBox(height: 24),
+                  _buildRoadmapContent(),
+                ],
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              'Select a career path and follow the learning roadmap',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
+          ),
+
+          // bottom buttons
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CareerRoadmap(
+                          userTestId: widget.userTestId,
+                          jobIndex: widget.jobIndex,
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text("View your Personalized Career Roadmap"),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => HomePage()),
+                    );
+                  },
+                  child: const Text("Complete"),
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-
-            // dropdown job selector
-            _buildJobSelector(),
-            const SizedBox(height: 24),
-
-            // roadmap content
-            _buildRoadmapContent(),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

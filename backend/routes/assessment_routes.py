@@ -124,9 +124,12 @@ def create_follow_up_questions(data: SkillReflectionRequest):
 # -----------------------------
 # Retrieve generated follow-up questions
 # -----------------------------
-@router.get("/get-generated-questions/{user_test_id}")
-def get_all_generated_questions(user_test_id: str):
-    questions = get_generated_questions(user_test_id)
+@router.post("/get-generated-questions/{user_test_id}")
+def get_all_generated_questions(request: dict):
+    user_test_id = request.get("user_test_id")
+    attempt_number = request.get("attempt_number", 1)
+
+    questions = get_generated_questions(user_test_id, attempt_number)
     return {"questions": questions}
 
 

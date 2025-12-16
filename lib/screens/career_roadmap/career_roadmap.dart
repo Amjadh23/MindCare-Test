@@ -1,6 +1,9 @@
-import 'package:code_map/screens/user/home_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
+import '../../utils/retake_service.dart';
+import '../educational_background_test/educational_background_screen.dart';
+import '../user/home_screen.dart';
 
 class CareerRoadmap extends StatefulWidget {
   final String userTestId;
@@ -21,15 +24,204 @@ class _CareerRoadmapState extends State<CareerRoadmap> {
   List<dynamic> recommendedJobs = [];
   String? currentJobIndex;
   String? currentJobTitle;
+  String? errorMessage;
   bool isLoading = true;
   bool isLoadingJobs = true;
-  String? errorMessage;
+
+  // retake tracking
+  bool _canRetake = true;
+  int _daysUntilRetake = 0;
+  List<dynamic> _userAttempts = [];
 
   @override
   void initState() {
     super.initState();
     currentJobIndex = widget.jobIndex;
     _loadData();
+    _checkRetakeEligibility();
+  }
+
+  Future<void> _checkRetakeEligibility() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    _userAttempts = await RetakeService.getUserAttempts(user.uid);
+    final canRetake = RetakeService.canRetakeTest(_userAttempts);
+    final daysUntil = RetakeService.daysUntilRetake(_userAttempts);
+
+    setState(() {
+      _canRetake = canRetake;
+      _daysUntilRetake = daysUntil;
+    });
+  }
+
+  Future<void> _handleRetake() async {
+    if (!_canRetake) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _userAttempts.length >= 10
+                ? 'Maximum 10 attempts reached'
+                : 'You can retake in $_daysUntilRetake days',
+          ),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    // show confirmation dialog for retake
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.black.withOpacity(0.1),
+        elevation: 8,
+        title: Container(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber[50],
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.refresh_rounded,
+                  color: Colors.amber,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Start New Assessment',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Attempt ${_userAttempts.length + 1}',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).primaryColor,
+                backgroundColor:
+                    Theme.of(context).primaryColor.withOpacity(0.1),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'You\'re about to start a new assessment. Are you sure you want to proceed?',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[700],
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 18,
+                    color: Colors.blue[600],
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Don\t worry, your previous results will be saved! :D',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.grey[700],
+                      side: BorderSide(color: Colors.grey[300]!),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text(
+                      'Not Now',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                      textAlign: TextAlign.center, // Add this
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      elevation: 2,
+                    ),
+                    child: const Text(
+                      'Proceed',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                      textAlign: TextAlign.center, // Add this
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    // navigate to the start of assessment
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const EducationalBackgroundTestScreen(),
+      ),
+      (route) => false, // clear all routes
+    );
   }
 
   Future<void> _loadData() async {
@@ -1030,6 +1222,71 @@ class _CareerRoadmapState extends State<CareerRoadmap> {
           ],
         ),
       ),
+      persistentFooterButtons: [
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const HomePage(),
+                    ),
+                    (route) => false,
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                ),
+                child: const Text(
+                  "Complete",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: _canRetake ? _handleRetake : null,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Theme.of(context).primaryColor,
+                  side: BorderSide(
+                    color: _canRetake
+                        ? Theme.of(context).primaryColor
+                        : Colors.grey[300]!,
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  _canRetake
+                      ? "Retake Test (Attempt ${_userAttempts.length + 1})"
+                      : _userAttempts.length >= 10
+                          ? "Max Attempts Reached"
+                          : "Retake Available in $_daysUntilRetake days",
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

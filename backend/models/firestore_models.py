@@ -34,7 +34,7 @@ def add_generated_question(
     answer=None,
     difficulty=None,
     question_type=None,
-    test_attempt=1,  # default to value 1 for first attempt
+    test_attempt=1,  # this should come from the request
 ) -> str:
     question_ref = db.collection("generated_questions").document()
     question_ref.set(
@@ -54,16 +54,12 @@ def add_generated_question(
     return question_ref.id
 
 
-def get_generated_questions(user_id: str):
-    latest_attempt = get_next_attempt(user_id) - 1
-    if latest_attempt == 0:
-        return []
-
+def get_generated_questions(user_id: str, attempt_number: int = 1):
     return [
         {**q.to_dict(), "id": q.id}
         for q in db.collection("generated_questions")
         .where("user_test_id", "==", user_id)
-        .where("test_attempt", "==", latest_attempt)
+        .where("test_attempt", "==", attempt_number)  # use attempt_number parameter
         .stream()
     ]
 

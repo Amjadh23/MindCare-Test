@@ -58,13 +58,15 @@ class ApiService {
     required String thesisFindings,
     required String careerGoals,
     required String userTestId,
+    required int attemptNumber,
   }) async {
     final url = Uri.parse("$baseUrl/generate-questions");
 
     final response = await http.post(
       url,
       headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"user_test_id": userTestId}),
+      body: jsonEncode(
+          {"user_test_id": userTestId, "attempt_number": attemptNumber}),
     );
 
     print("Raw questions response body: ${response.body}");
@@ -98,10 +100,18 @@ class ApiService {
   // retrieve generated follow-up questions
   static Future<List<Map<String, dynamic>>> getGeneratedQuestions({
     required String userTestId,
+    required int attemptNumber,
   }) async {
-    final url = Uri.parse("$baseUrl/get-generated-questions/$userTestId");
+    final url = Uri.parse("$baseUrl/get-generated-questions");
 
-    final response = await http.get(url);
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "user_test_id": userTestId,
+        "attempt_number": attemptNumber,
+      }),
+    );
 
     print("Raw follow-up questions response body: ${response.body}");
 
@@ -187,21 +197,32 @@ class ApiService {
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
 
-      // Extract the 'data' list from the backend response
+      // DEBUG: print what we actually received
+      print('Gap analysis raw response: $decoded');
+      print('Gap analysis response type: ${decoded.runtimeType}');
+
+      // handle both possible response formats
+      List<dynamic> dataList;
+
       if (decoded is Map && decoded.containsKey('data')) {
         final data = decoded['data'];
         if (data is List) {
-          // Ensure each item is a Map<String, dynamic>
-          return data.map<Map<String, dynamic>>((item) {
-            return Map<String, dynamic>.from(item);
-          }).toList();
+          dataList = data;
+        } else {
+          throw Exception("Expected 'data' to be a List");
         }
-        throw Exception(
-            "Expected 'data' to be a List, but got: ${data.runtimeType}");
+      } else if (decoded is List) {
+        dataList = decoded;
+      } else if (decoded is Map) {
+        dataList = [decoded];
+      } else {
+        throw Exception("Unexpected response format: ${decoded.runtimeType}");
       }
 
-      throw Exception(
-          "Unexpected response format for all gap analysis: ${decoded.runtimeType}");
+      // convert to List<Map<String, dynamic>>
+      return dataList.map<Map<String, dynamic>>((item) {
+        return Map<String, dynamic>.from(item);
+      }).toList();
     } else {
       throw Exception(
           "Error fetching gap analysis: ${response.statusCode} ${response.body}");
@@ -222,18 +243,43 @@ class ApiService {
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
 
-      // Extract the 'data' list from the backend response
-      if (decoded is Map && decoded.containsKey('data')) {
-        final data = decoded['data'];
-        if (data is List) {
-          // Ensure each item is a Map<String, dynamic>
-          return data.map<Map<String, dynamic>>((item) {
-            return Map<String, dynamic>.from(item);
-          }).toList();
-        }
-        throw Exception(
-            "Expected 'data' to be a List, but got: ${data.runtimeType}");
+      print('=== DEBUG CHARTS RESPONSE ===');
+      print('Response type: ${decoded.runtimeType}');
+      print('Is Map? ${decoded is Map}');
+      if (decoded is Map) {
+        print('Map keys: ${decoded.keys.toList()}');
       }
+
+      if (decoded is Map<String, dynamic>) {
+        List<Map<String, dynamic>> chartsList = [];
+
+        decoded.forEach((key, value) {
+          if (value is Map<String, dynamic>) {
+            // add the chart data with its key
+            chartsList.add({
+              'chartName': key,
+              ...value,
+            });
+          }
+        });
+
+        // if we got charts, return them
+        if (chartsList.isNotEmpty) {
+          return chartsList;
+        }
+
+        // if the map itself is the chart data
+        // (single chart wrapped in map)
+        return [decoded];
+      }
+
+      // if it's already a list, just return it
+      if (decoded is List) {
+        return decoded.map<Map<String, dynamic>>((item) {
+          return Map<String, dynamic>.from(item);
+        }).toList();
+      }
+
       throw Exception(
           "Unexpected response format for all charts: ${decoded.runtimeType}");
     } else {

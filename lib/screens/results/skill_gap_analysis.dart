@@ -223,7 +223,7 @@ class _SkillGapAnalysisScreenState extends State<SkillGapAnalysisScreen> {
                       ),
                     ),
 
-                    // Buttons at the bottom
+                    // buttons at the bottom
                     Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
@@ -243,13 +243,6 @@ class _SkillGapAnalysisScreenState extends State<SkillGapAnalysisScreen> {
                             },
                             child: const Text(
                                 "Generate Your IT Career Path Report"),
-                          ),
-                          const SizedBox(height: 8),
-                          OutlinedButton(
-                            onPressed: () {
-                              // don't know yet :3
-                            },
-                            child: const Text("Retake Test"),
                           ),
                         ],
                       ),

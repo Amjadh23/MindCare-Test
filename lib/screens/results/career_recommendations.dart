@@ -1,8 +1,10 @@
-// screens/career_recommendations_screen.dart
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../models/user_profile_match.dart';
 import '../../services/api_service.dart';
 import 'package:code_map/screens/results/skill_gap_analysis.dart';
+
+import '../../utils/retake_service.dart';
 
 class CareerRecommendationsScreen extends StatefulWidget {
   final String userTestId;
@@ -61,6 +63,9 @@ class _CareerRecommendationsScreenState
         _expandedCards[_selectedJobIndex!] = true;
         print('Selected first job by default: Index $_selectedJobIndex');
       }
+
+      // mark assessment as completed after career recommendations are fetched
+      await _markTestAsCompleted();
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -122,6 +127,18 @@ class _CareerRecommendationsScreenState
     } catch (e) {
       print('Error triggering chart computation: $e');
     }
+  }
+
+  Future<void> _markTestAsCompleted() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    // update attempt status to 'Completed'
+    await RetakeService.updateAttemptStatus(
+      userId: user.uid,
+      testId: widget.userTestId,
+      status: 'Completed',
+    );
   }
 
   void _selectCareer(String jobIndex) {

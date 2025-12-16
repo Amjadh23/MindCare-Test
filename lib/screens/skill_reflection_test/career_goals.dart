@@ -40,16 +40,18 @@ class _CareerGoalsState extends State<CareerGoals> {
 
   void _onCompletePressed() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("User not logged in."),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
+    if (user == null) return;
     final uid = user.uid;
+
+    // check existing attempts
+    final userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+    int attemptNumber = 1;
+    if (userDoc.exists) {
+      final attempts = userDoc.data()?['assessmentAttempts'] as List? ?? [];
+      attemptNumber = attempts.length + 1;
+    }
 
     if (_isSubmitting) return; // prevent multiple submissions
 
@@ -86,19 +88,28 @@ class _CareerGoalsState extends State<CareerGoals> {
       // submit test -> backend creates userTestId
       final userTestId = await ApiService.submitTest(widget.userResponse);
 
-      // save the test ID under the current user's document
+      // update user document with userTestId and new attempt
       await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'userTestId': userTestId,
-        'lastUpdated': FieldValue.serverTimestamp()
+        'userTestId': userTestId, // link userTestId to user document
+        'lastUpdated': FieldValue.serverTimestamp(), // server timestamp
+        'assessmentAttempts': FieldValue.arrayUnion([
+          {
+            'attemptNumber': attemptNumber, // new attempt number
+            'testId': userTestId,
+            'completedAt': DateTime.now().toIso8601String(),
+            'status': 'In progress'
+          }
+        ])
       });
 
-      // navigate to FollowUpScreen with the userTestId
+      // navigate to FollowUpScreen with the userTestId and attempt number
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => FollowUpScreen(
             userResponse: widget.userResponse,
-            userTestId: userTestId, // Pass the userTestId
+            userTestId: userTestId, // pass the userTestId
+            attemptNumber: attemptNumber,
           ),
         ),
       );

@@ -6,9 +6,13 @@ import 'follow_up_test.dart';
 class FollowUpScreen extends StatefulWidget {
   final UserResponses userResponse;
   final String userTestId;
+  final int attemptNumber;
 
   const FollowUpScreen(
-      {super.key, required this.userResponse, required this.userTestId});
+      {super.key,
+      required this.userResponse,
+      required this.userTestId,
+      required this.attemptNumber});
 
   @override
   State<FollowUpScreen> createState() => _FollowUpScreenState();
@@ -71,6 +75,7 @@ class _FollowUpScreenState extends State<FollowUpScreen> {
       try {
         questions = await ApiService.getGeneratedQuestions(
           userTestId: widget.userTestId,
+          attemptNumber: widget.attemptNumber,
         );
 
         if (questions.isNotEmpty) {
@@ -105,6 +110,7 @@ class _FollowUpScreenState extends State<FollowUpScreen> {
         thesisFindings: widget.userResponse.thesisFindings,
         careerGoals: widget.userResponse.careerGoals,
         userTestId: widget.userTestId,
+        attemptNumber: widget.attemptNumber,
       );
 
       print("New questions generated: ${questions.length}");

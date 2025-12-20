@@ -329,8 +329,8 @@ class _CareerRoadmapState extends State<CareerRoadmap> {
 
   String _formatLevelName(String level) {
     switch (level.toLowerCase()) {
-      case 'beginner':
-        return 'Beginner';
+      case 'basic':
+        return 'Basic';
       case 'intermediate':
         return 'Intermediate';
       case 'advanced':
@@ -822,12 +822,7 @@ class _CareerRoadmapState extends State<CareerRoadmap> {
 
     // sort levels in logical order
     levelNames.sort((a, b) {
-      final order = {
-        'Beginner': 0,
-        'Intermediate': 1,
-        'Advanced': 2,
-        'Expert': 3
-      };
+      final order = {'Basic': 0, 'Intermediate': 1, 'Advanced': 2, 'Expert': 3};
       return (order[a] ?? 4).compareTo(order[b] ?? 4);
     });
 
@@ -878,8 +873,7 @@ class _CareerRoadmapState extends State<CareerRoadmap> {
       int levelIndex, int totalLevels) {
     Color _getLevelColor(String levelName) {
       switch (levelName.toLowerCase()) {
-        case 'beginner':
-        case 'basic': // handle both 'Beginner' and 'Basic'
+        case 'basic':
           return const Color(0xFF4CAF50); // Green
         case 'intermediate':
           return const Color(0xFF2196F3); // Blue
@@ -888,7 +882,7 @@ class _CareerRoadmapState extends State<CareerRoadmap> {
         case 'expert':
           return const Color(0xFFF44336); // Red
         default:
-          // Fallback color based on position
+          // fallback color based on position
           return const Color(0xFF4CAF50);
       }
     }

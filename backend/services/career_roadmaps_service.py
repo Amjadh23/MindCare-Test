@@ -48,8 +48,8 @@ def generate_roadmap_with_openai(skill_status: dict, knowledge_status: dict) -> 
     Return ONLY a JSON object with this exact structure:
     {{
         "topics": {{
-            "Main Topic 1": "Beginner/Intermediate/Expert/Advanced",
-            "Main Topic 2": "Beginner/Intermediate/Expert/Advanced"
+            "Main Topic 1": "Basic/Intermediate/Expert/Advanced",
+            "Main Topic 2": "Basic/Intermediate/Expert/Advanced"
         }},
         "sub_topics": {{
             "Main Topic 1": [
@@ -65,7 +65,7 @@ def generate_roadmap_with_openai(skill_status: dict, knowledge_status: dict) -> 
     
     For each affected skill/knowledge area, generate:
     1. A Main Topic (professional, concise, technical)
-    2. An appropriate proficiency level (Beginner / Intermediate / Advanced / Expert) ONLY
+    2. An appropriate proficiency level (Basic / Intermediate / Advanced / Expert) ONLY
     3. Subtopics that fully cover what the user must learn
         - Subtopics must be: concise, technical, non-generic, actionable
         - Cover the complete domain but avoid unnecessary depth

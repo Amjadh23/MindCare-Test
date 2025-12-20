@@ -9,7 +9,7 @@ from models.firestore_models import (
 LEVEL_ORDER = {"Not Provided": 0, "Basic": 1, "Intermediate": 2, "Advanced": 3}
 
 
-def compute_skill_gaps_for_all_jobs(user_test_id: str):
+def compute_gaps_for_all_jobs(user_test_id: str):
     results = []
 
     # retrieve recommendation id from career recommendations

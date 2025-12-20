@@ -17,7 +17,7 @@ from services.embedding_service import (
     match_user_to_job,
     analyze_user_skills_knowledge,
 )
-from services.skill_gap_analysis_service import compute_skill_gaps_for_all_jobs
+from services.gap_analysis_service import compute_gaps_for_all_jobs
 from services.report_generation_service import get_report_data
 from models.firestore_models import (
     create_user_test,
@@ -79,6 +79,9 @@ def create_follow_up_questions(data: SkillReflectionRequest):
 
     # get the next attempt number
     next_attempt = get_next_attempt(data.user_test_id)
+
+    print(f"[DEBUG] Next attempt number for {data.user_test_id}: {next_attempt}")
+    print(f"[DEBUG] Querying for user_test_id: {data.user_test_id}")
 
     # pass all three into service (allowing service to handle None/empty)
     result = generate_questions(
@@ -239,7 +242,7 @@ def user_profile_match(request: SkillReflectionRequest):
 @router.post("/gap-analysis/all/{user_test_id}")
 # FastAPI automatically extracts user_test_id from the URL and passes it as the function argument.
 def run_gap_analysis_all(user_test_id: str):
-    results = compute_skill_gaps_for_all_jobs(user_test_id)
+    results = compute_gaps_for_all_jobs(user_test_id)
     if isinstance(results, dict) and results.get("error"):
         return {"error": results["error"]}
     return {"message": "Skill gaps computed", "data": results}

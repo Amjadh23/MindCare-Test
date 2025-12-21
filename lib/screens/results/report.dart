@@ -511,12 +511,6 @@ class _ReportScreenState extends State<ReportScreen> {
                                   "View your Personalized Career Roadmap"),
                             ),
                             const SizedBox(height: 8),
-                            OutlinedButton(
-                              onPressed: () {
-                                // don't know yet :3
-                              },
-                              child: const Text("Complete"),
-                            ),
                           ],
                         ),
                       ),

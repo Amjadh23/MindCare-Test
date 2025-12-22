@@ -17,13 +17,17 @@ def compute_gaps_for_all_jobs(user_test_id: str):
     if not rec_id:
         return {"error": "No career recommendation found for this user test ID."}
 
+    print(f"[DEBUG] Found recommendation ID: {rec_id}")
+
     # retrieve all job matches from career recommendations for this recommendation
-    all_jobs = get_all_jobs()
-    if not all_jobs:
+    recommended_jobs = get_all_jobs(rec_id)
+    print(f"[DEBUG] Found {len(recommended_jobs)} recommended jobs for rec_id {rec_id}")
+
+    if not recommended_jobs:
         return {"error": "No jobs found for this recommendation."}
 
     # compute gaps
-    for job in all_jobs:
+    for job in recommended_jobs:
         gap_result = compare_and_save(user_test_id, str(job["job_index"]))
 
         results.append(

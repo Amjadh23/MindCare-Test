@@ -162,23 +162,28 @@ class ApiService {
     String? skillReflection,
   }) async {
     final url = Uri.parse("$baseUrl/user-profile-match");
-
     final body = {
       "user_test_id": userTestId,
       if (skillReflection != null) "skillReflection": skillReflection,
     };
+    print("[DEBUG] Request body: $body");
 
-    final response = await http.post(
-      url,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode(body),
-    );
+    try {
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(body),
+      );
 
-    if (response.statusCode == 200) {
-      final decoded = jsonDecode(response.body);
-      return UserProfileMatchResponse.fromJson(decoded);
-    } else {
-      print("Error ${response.statusCode}: ${response.body}");
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        return UserProfileMatchResponse.fromJson(decoded);
+      } else {
+        print("Error ${response.statusCode}: ${response.body}");
+        return null;
+      }
+    } catch (e) {
+      print("[DEBUG] Exception: $e");
       return null;
     }
   }
@@ -186,6 +191,7 @@ class ApiService {
   // get skill and knowledge gap analysis for all jobs
   static Future<List<Map<String, dynamic>>> getGapAnalysis({
     required String userTestId,
+    required int attemptNumber,
   }) async {
     final url = Uri.parse("$baseUrl/gap-analysis/all/$userTestId");
 
@@ -232,12 +238,14 @@ class ApiService {
   // get charts for all jobs
   static Future<List<Map<String, dynamic>>> getCharts({
     required String userTestId,
+    required int attemptNumber,
   }) async {
     final url = Uri.parse("$baseUrl/generate-charts/all/$userTestId");
 
     final response = await _requestWithRetry(() => http.post(
           url,
           headers: {"Content-Type": "application/json"},
+          body: jsonEncode({'attempt_number': attemptNumber}),
         ));
 
     if (response.statusCode == 200) {

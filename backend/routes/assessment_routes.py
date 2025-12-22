@@ -1,6 +1,6 @@
 # acts as the API endpoint. It receives requests from Dart, performs the computation or data retrieval, and returns a response.
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Body
 from schemas.assessment import (
     UserResponses,
     SkillReflectionRequest,
@@ -23,8 +23,8 @@ from models.firestore_models import (
     create_user_test,
     add_user_skills_knowledge,
     add_generated_question,
+    get_all_jobs,
     get_generated_questions,
-    get_next_attempt,
     add_career_recommendation,
     add_job_match,
     get_job_matches,
@@ -65,23 +65,61 @@ def submit_test(data: UserResponses):
 # -----------------------------
 @router.post("/generate-questions")
 def create_follow_up_questions(data: SkillReflectionRequest):
+    # get the user test document
     user_ref = db.collection("user_tests").document(data.user_test_id).get()
-    if not user_ref.exists:
-        return {"error": "User not found"}
+    print(f"Checked user_tests/{data.user_test_id} - exists: {user_ref.exists}")
 
-    doc = user_ref.to_dict()
-    skill_reflection = user_ref.to_dict().get("skillReflection")
-    thesis_findings = user_ref.to_dict().get("thesisFindings")
-    career_goals = user_ref.to_dict().get("careerGoals")
+    if not user_ref.exists:
+        return {"error": "User test not found"}
+
+    # find which user owns this test (look in users collection)
+    print(
+        f"Querying users where assessmentAttempts contains testId: {data.user_test_id}"
+    )
+
+    user_query = (
+        db.collection("users")
+        .where("testIds", "array_contains", data.user_test_id)
+        .limit(1)
+    )
+
+    user_docs = list(user_query.stream())
+    print(f"Found {len(user_docs)} users with this testId")
+
+    if not user_docs:
+        # check what users actually exist
+        all_users = list(db.collection("users").limit(3).stream())
+        print(f"DEBUG: First 3 users in collection: {[doc.id for doc in all_users]}")
+
+        for user in all_users:
+            user_data = user.to_dict()
+            attempts = user_data.get("assessmentAttempts", [])
+            print(f"   User {user.id} has assessmentAttempts: {attempts}")
+
+        return {"error": "User for the given test ID not found"}
+
+    user_doc = user_docs[0]
+    user_data = user_doc.to_dict()
+
+    # get the attempt number from assessmentAttempts
+    assessment_attempts = user_data.get("assessmentAttempts", [])
+    attempt_number = 1  # default if not found
+
+    for attempt in assessment_attempts:
+        if attempt.get("testId") == data.user_test_id:
+            attempt_number = attempt.get("attemptNumber", 1)
+            break
+
+    print(f"User attempt number for {data.user_test_id}: {attempt_number}")
+
+    # get reflection data from user test document
+    user_test_data = user_ref.to_dict()
+    skill_reflection = user_test_data.get("skillReflection")
+    thesis_findings = user_test_data.get("thesisFindings")
+    career_goals = user_test_data.get("careerGoals")
 
     if not skill_reflection and not thesis_findings and not career_goals:
         return {"error": "Insufficient data to generate questions"}
-
-    # get the next attempt number
-    next_attempt = get_next_attempt(data.user_test_id)
-
-    print(f"[DEBUG] Next attempt number for {data.user_test_id}: {next_attempt}")
-    print(f"[DEBUG] Querying for user_test_id: {data.user_test_id}")
 
     # pass all three into service (allowing service to handle None/empty)
     result = generate_questions(
@@ -103,7 +141,7 @@ def create_follow_up_questions(data: SkillReflectionRequest):
                 answer=q.get("answer", ""),
                 difficulty=q.get("difficulty", "easy"),
                 question_type=q.get("category", "general"),
-                test_attempt=next_attempt,
+                test_attempt=attempt_number,  # use attempt_number from assessmentAttempts
             )
             saved_questions.append(
                 {
@@ -115,12 +153,13 @@ def create_follow_up_questions(data: SkillReflectionRequest):
                     "answer": q.get("answer", ""),
                     "difficulty": q.get("difficulty", "easy"),
                     "category": q.get("category", "general"),
-                    "test_attempt": next_attempt,
+                    "test_attempt": attempt_number,
                 }
             )
         except Exception as e:
             print(f"[ERROR] Failed to save question: {str(e)}")
 
+    print(f"=== DEBUG END: Generated {len(saved_questions)} questions ===")
     return {"questions": saved_questions}
 
 
@@ -148,6 +187,7 @@ def submit_follow_up(data: FollowUpResponses):
                     "user_test_id": resp.user_test_id,
                     "question_id": resp.questionId,
                     "selected_option": resp.selectedOption,
+                    "test_attempt": resp.test_attempt,
                 }
             )
         except Exception as e:
@@ -160,8 +200,12 @@ def submit_follow_up(data: FollowUpResponses):
 # -----------------------------
 @router.post("/user-profile-match", response_model=UserProfileMatchResponse)
 def user_profile_match(request: SkillReflectionRequest):
+    print(f"=== USER-PROFILE-MATCH CALLED ===")
+    print(f"Request received for user_test_id: {request.user_test_id}")
+
     user_ref = db.collection("user_tests").document(request.user_test_id).get()
     if not user_ref.exists:
+        print(f"ERROR: User test not found")
         return UserProfileMatchResponse(
             profile_text="",
             top_matches=[],
@@ -192,6 +236,13 @@ def user_profile_match(request: SkillReflectionRequest):
 
     # match jobs
     matches = match_user_to_job(request.user_test_id, user_data.get("user_embedding"))
+
+    print(f"Matches found: {matches is not None}")
+    print(f"Matches has error: {'error' in matches if matches else 'No matches'}")
+    print(
+        f"Number of top_matches: {len(matches.get('top_matches', [])) if matches else 0}"
+    )
+
     if not matches or "error" in matches:
         return UserProfileMatchResponse(
             profile_text=user_data.get("profile_text", ""),
@@ -203,6 +254,8 @@ def user_profile_match(request: SkillReflectionRequest):
         rec_id = add_career_recommendation(
             request.user_test_id, profile_text=user_data.get("profile_text", "")
         )
+        print(f"SUCCESS: Created career recommendation ID: {rec_id}")
+
         for job in matches.get("top_matches", []):
             add_job_match(
                 recommendation_id=rec_id,
@@ -214,6 +267,7 @@ def user_profile_match(request: SkillReflectionRequest):
                 required_skills=job.get("required_skills", {}),
                 required_knowledge=job.get("required_knowledge", {}),
             )
+            print(f"SUCCESS: Saved {len(matches.get('top_matches', []))} job matches")
     except Exception as e:
         print(f"[ERROR] Failed to save career recommendation/job matches: {str(e)}")
 
@@ -242,6 +296,14 @@ def user_profile_match(request: SkillReflectionRequest):
 @router.post("/gap-analysis/all/{user_test_id}")
 # FastAPI automatically extracts user_test_id from the URL and passes it as the function argument.
 def run_gap_analysis_all(user_test_id: str):
+    print(f"[GAP DEBUG] Starting gap analysis for test: {user_test_id}")
+
+    rec_id = get_recommendation_id_by_user_test_id(user_test_id)
+    print(f"[GAP DEBUG] Found recommendation ID: {rec_id}")
+
+    recommended_jobs = get_all_jobs(rec_id)
+    print(f"[GAP DEBUG] Found {len(recommended_jobs)} recommended jobs")
+
     results = compute_gaps_for_all_jobs(user_test_id)
     if isinstance(results, dict) and results.get("error"):
         return {"error": results["error"]}
@@ -252,11 +314,20 @@ def run_gap_analysis_all(user_test_id: str):
 # Charts for All Jobs
 # -----------------------------
 @router.post("/generate-charts/all/{user_test_id}")
-# FastAPI automatically extracts user_test_id from the URL and passes it as the function argument.
-def run_charts_all(user_test_id: str):
-    results = compute_and_save_charts_for_all_jobs(user_test_id)
+def run_charts_all(user_test_id: str, data: dict = Body(...)):
+    """
+    Generate charts for all recommended jobs.
+    Requires attempt_number in request body.
+    """
+    # get attempt number from request body
+    attempt_number = data.get("attempt_number", 1)
+
+    # pass both parameters to the function
+    results = compute_and_save_charts_for_all_jobs(user_test_id, attempt_number)
+
     if isinstance(results, dict) and results.get("error"):
         return {"error": results["error"]}
+
     return {"message": "Charts computed", "data": results}
 
 

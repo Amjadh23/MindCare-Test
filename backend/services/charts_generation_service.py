@@ -72,10 +72,10 @@ def generate_radar_chart(skills, user_level, required_level):
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
-def calculate_test_performance(user_test_id: str):
+def calculate_test_performance(user_test_id: str, attempt_number: int):
     """Calculate total correct vs incorrect answers."""
-    questions = get_generated_questions(user_test_id)
-    answers = get_follow_up_answers_by_user(user_test_id)
+    questions = get_generated_questions(user_test_id, attempt_number)
+    answers = get_follow_up_answers_by_user(user_test_id, attempt_number)
 
     answers_map = {a["question_id"]: a["selected_option"] for a in answers}
 
@@ -127,25 +127,29 @@ def generate_bar_chart(data: dict):
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
-def compute_and_save_charts_for_all_jobs(user_test_id: str):
+def compute_and_save_charts_for_all_jobs(user_test_id: str, attempt_number: int):
     """
     Compute radar and bar charts for all jobs linked to the user's recommendation.
     Uses Firestore model functions only.
     """
-    # get recommendation ID for the user
+    # retrieve recommendation id from career recommendations
     rec_id = get_recommendation_id_by_user_test_id(user_test_id)
     if not rec_id:
         return {"error": "No career recommendation found for this user test ID."}
 
+    print(f"[ATTEMPT DEBUG] Found recommendation ID: {rec_id}")
+
     # get all jobs for this recommendation
-    all_jobs = get_all_jobs(rec_id)
-    if not all_jobs:
+    recommended_jobs = get_all_jobs(rec_id)
+    print(f"[ATTEMPT DEBUG] Found {len(recommended_jobs)} jobs for this recommendation")
+
+    if not recommended_jobs:
         return {"error": "No jobs found for this recommendation."}
 
     user_data = get_user_skills_knowledge(user_test_id)
     results = []
 
-    for job in all_jobs:
+    for job in recommended_jobs:
         job_skills_raw = job.get("required_skills", {})
         user_skills_raw = user_data.get("skills", {})
 
@@ -165,7 +169,7 @@ def compute_and_save_charts_for_all_jobs(user_test_id: str):
 
         # generate charts
         radar_chart_base64 = generate_radar_chart(skills, user_level, required_level)
-        test_performance = calculate_test_performance(user_test_id)
+        test_performance = calculate_test_performance(user_test_id, attempt_number)
         result_chart = generate_bar_chart(test_performance)
 
         # prepare charts data to be saved

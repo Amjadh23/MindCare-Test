@@ -23,14 +23,6 @@ class SkillReflectionRequest(BaseModel):
 
 
 # -----------------------------
-# Submit test with user ID
-# -----------------------------
-class SubmitTestRequest(BaseModel):
-    responses: UserResponses
-    user_id: str
-
-
-# -----------------------------
 # Follow-up test schemas
 # -----------------------------
 class FollowUpResponse(BaseModel):

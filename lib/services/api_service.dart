@@ -36,26 +36,22 @@ class ApiService {
 
   // submit the initial test and return the generated userTestId (String)
   static Future<String> submitTest(UserResponses responses) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      throw Exception("User not authenticated");
-    }
     final url = Uri.parse("$baseUrl/submit-test");
-
-    final requestData = {
-      'responses': responses.toJson(),
-    };
-
     final response = await _requestWithRetry(() => http.post(
           url,
           headers: {"Content-Type": "application/json"},
-          body: jsonEncode(requestData), // Send new structure
+          body: jsonEncode(responses.toJson()), // Send new structure
         ));
 
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
       print("Submit Success: $decoded");
-      return decoded['id'] as String;
+      final id = decoded['id'];
+      if (id != null) {
+        return id.toString();
+      } else {
+        return "N/A";
+      }
     } else {
       throw Exception("Submit Error: ${response.statusCode} ${response.body}");
     }

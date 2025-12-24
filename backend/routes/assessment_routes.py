@@ -1,12 +1,12 @@
 # acts as the API endpoint. It receives requests from Dart, performs the computation or data retrieval, and returns a response.
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Query
 from schemas.assessment import (
-    SubmitTestRequest,
     SkillReflectionRequest,
     FollowUpResponses,
     JobMatch,
     UserProfileMatchResponse,
+    UserResponses,
 )
 from services.questions_generation_service import generate_questions
 from services.charts_generation_service import (
@@ -17,7 +17,10 @@ from services.embedding_service import (
     match_user_to_job,
     analyze_user_skills_knowledge,
 )
-from services.gap_analysis_service import compute_gaps_for_all_jobs
+from services.gap_analysis_service import (
+    compute_gap_for_single_job,
+    compute_gaps_for_all_jobs,
+)
 from services.report_generation_service import get_report_data
 from models.firestore_models import (
     create_user_test,
@@ -44,9 +47,7 @@ router = APIRouter()
 # Submit user test responses
 # -----------------------------
 @router.post("/submit-test")
-def submit_test(request: SubmitTestRequest):
-    data = request.responses
-    user_id = request.user_id
+def submit_test(data: UserResponses):
     doc_data = {
         "educationLevel": data.educationLevel,
         "cgpa": data.cgpa,
@@ -58,8 +59,8 @@ def submit_test(request: SubmitTestRequest):
         "thesisFindings": data.thesisFindings,
         "careerGoals": data.careerGoals,
     }
-    user_test_id = create_user_test(user_id, doc_data)
-    add_user_skills_knowledge(user_id, skills=[], knowledge=[])
+    user_test_id = create_user_test(doc_data)
+    add_user_skills_knowledge(user_test_id, skills=[], knowledge=[])
     return {"message": "Data saved successfully", "id": user_test_id}
 
 
@@ -89,18 +90,6 @@ def create_follow_up_questions(data: SkillReflectionRequest):
     user_docs = list(user_query.stream())
     print(f"Found {len(user_docs)} users with this testId")
 
-    if not user_docs:
-        # check what users actually exist
-        all_users = list(db.collection("users").limit(3).stream())
-        print(f"DEBUG: First 3 users in collection: {[doc.id for doc in all_users]}")
-
-        for user in all_users:
-            user_data = user.to_dict()
-            attempts = user_data.get("assessmentAttempts", [])
-            print(f"   User {user.id} has assessmentAttempts: {attempts}")
-
-        return {"error": "User for the given test ID not found"}
-
     user_doc = user_docs[0]
     user_data = user_doc.to_dict()
 
@@ -115,7 +104,7 @@ def create_follow_up_questions(data: SkillReflectionRequest):
 
     print(f"User attempt number for {data.user_test_id}: {attempt_number}")
 
-    # get reflection data from user test document
+    # get reflection data from saved user test document
     user_test_data = user_ref.to_dict()
     skill_reflection = user_test_data.get("skillReflection")
     thesis_findings = user_test_data.get("thesisFindings")
@@ -311,6 +300,34 @@ def run_gap_analysis_all(user_test_id: str):
     if isinstance(results, dict) and results.get("error"):
         return {"error": results["error"]}
     return {"message": "Skill gaps computed", "data": results}
+
+
+@router.get("/gap-analysis/{user_test_id}/{job_index}")
+def get_gap_analysis_for_single_job(
+    user_test_id: str,
+    job_index: str,
+    attempt: int = Query(1, description="Attempt number"),
+):
+    print(
+        f"[GAP DEBUG] Starting gap analysis for test: {user_test_id}, job: {job_index}, attempt: {attempt}"
+    )
+
+    try:
+        result = compute_gap_for_single_job(user_test_id, job_index)
+
+        if isinstance(result, dict) and result.get("error"):
+            return {"error": result["error"]}
+
+        return {
+            "message": "Skill gap computed for single job",
+            "data": result,
+        }
+    except Exception as e:
+        print(f"[ERROR] Failed to compute gap analysis: {e}")
+        import traceback
+
+        traceback.print_exc()
+        return {"error": f"Internal server error: {str(e)}"}
 
 
 # -----------------------------

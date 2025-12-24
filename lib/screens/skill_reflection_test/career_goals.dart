@@ -39,15 +39,16 @@ class _CareerGoalsState extends State<CareerGoals> {
   }
 
   void _onCompletePressed() async {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = FirebaseAuth.instance
+        .currentUser; // gets the currently signed-in user from Firebase Authentication
     if (user == null) return;
-    final uid = user.uid;
+    final uid = user.uid; // extract the user's unique ID
 
     // check existing attempts
     final userDoc =
         await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
-    int attemptNumber = 1;
+    int attemptNumber = 1; // assume first attempt
     if (userDoc.exists) {
       final attempts = userDoc.data()?['assessmentAttempts'] as List? ?? [];
       attemptNumber = attempts.length + 1;
@@ -109,7 +110,7 @@ class _CareerGoalsState extends State<CareerGoals> {
           builder: (context) => FollowUpScreen(
             userResponse: widget.userResponse,
             userTestId: userTestId, // pass the userTestId
-            attemptNumber: attemptNumber,
+            attemptNumber: attemptNumber, // pass the attempt number
           ),
         ),
       );

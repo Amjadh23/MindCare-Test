@@ -126,7 +126,7 @@ class _RecentReportWidgetState extends State<RecentReportWidget> {
         }
       }
 
-      // Sort jobs by similarity percentage (highest first)
+      // sort jobs by similarity percentage (highest first)
       _availableJobs.sort((a, b) {
         final aPercent =
             double.tryParse(a['similarity_percentage']?.toString() ?? '0') ?? 0;
@@ -548,7 +548,7 @@ class _RecentReportWidgetState extends State<RecentReportWidget> {
                   ),
                 ),
 
-                // Show similarity percentage
+                // show similarity percentage
                 const SizedBox(width: 8),
                 Container(
                   padding:
@@ -572,7 +572,7 @@ class _RecentReportWidgetState extends State<RecentReportWidget> {
 
         const SizedBox(height: 12),
 
-        // Report content
+        // report content
         GestureDetector(
           onTap: () {
             if (_userTestId != null && _selectedJob != null) {
@@ -592,7 +592,7 @@ class _RecentReportWidgetState extends State<RecentReportWidget> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: isBestMatch
-                  ? const Color(0xFFFFF9E6) // Light gold for best match card
+                  ? const Color(0xFFFFF9E6)
                   : const Color(0xFFF8FDF9),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
@@ -688,7 +688,6 @@ class _RecentReportWidgetState extends State<RecentReportWidget> {
                 ),
                 const SizedBox(height: 16),
 
-                // Quick stats if available
                 if (_reportData!['job']?['required_skills'] != null)
                   Wrap(
                     spacing: 6,
@@ -758,7 +757,6 @@ class _RecentReportWidgetState extends State<RecentReportWidget> {
 
         const SizedBox(height: 16),
 
-        // Action buttons - IMPROVED
         Row(
           children: [
             Expanded(

@@ -115,6 +115,8 @@ class _RecentReportWidgetState extends State<RecentReportWidget> {
                   response['data']['job']['job_title'] ?? 'Job ${jobIndex + 1}',
               'job_description':
                   response['data']['job']['job_description'] ?? '',
+              'similarity_percentage':
+                  response['data']['job']['similarity_percentage'] ?? '',
               'report_data': response['data'],
             });
           }
@@ -124,13 +126,23 @@ class _RecentReportWidgetState extends State<RecentReportWidget> {
         }
       }
 
+      // Sort jobs by similarity percentage (highest first)
+      _availableJobs.sort((a, b) {
+        final aPercent =
+            double.tryParse(a['similarity_percentage']?.toString() ?? '0') ?? 0;
+        final bPercent =
+            double.tryParse(b['similarity_percentage']?.toString() ?? '0') ?? 0;
+        return bPercent.compareTo(aPercent);
+      });
+
       print("\n=== LOADED ${_availableJobs.length} JOBS ===");
       for (var i = 0; i < _availableJobs.length; i++) {
-        print("Job $i: ${_availableJobs[i]['job_title']}");
+        print(
+            "Job $i: ${_availableJobs[i]['job_title']} - ${_availableJobs[i]['similarity_percentage']}%");
       }
 
       if (_availableJobs.isNotEmpty) {
-        // select first job by default
+        // select first job by default (now the highest percentage)
         _selectedJob = _availableJobs.first;
         _reportData = _selectedJob!['report_data'];
 
@@ -165,6 +177,27 @@ class _RecentReportWidgetState extends State<RecentReportWidget> {
   String _truncateText(String text, {int maxLength = 80}) {
     if (text.length <= maxLength) return text;
     return '${text.substring(0, maxLength)}...';
+  }
+
+  Color _getSimilarityColor(double percentage) {
+    if (percentage >= 80) return const Color(0xFF2F8D46); // Green for excellent
+    if (percentage >= 70)
+      return const Color(0xFF4CAF50); // Light green for good
+    if (percentage >= 60) return const Color(0xFFF57C00); // Orange for average
+    return const Color(0xFFD32F2F); // Red for low
+  }
+
+  String _getRankingIcon(int rank) {
+    switch (rank) {
+      case 1:
+        return '🥇';
+      case 2:
+        return '🥈';
+      case 3:
+        return '🥉';
+      default:
+        return '#$rank';
+    }
   }
 
   @override
@@ -275,9 +308,16 @@ class _RecentReportWidgetState extends State<RecentReportWidget> {
                 border: Border.all(color: Colors.grey[300]!),
               ),
               child: Column(
-                children: _availableJobs.map((job) {
+                children: _availableJobs.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final job = entry.value;
                   final isSelected =
                       _selectedJob?['job_index'] == job['job_index'];
+                  final similarity = double.tryParse(
+                          job['similarity_percentage']?.toString() ?? '0') ??
+                      0;
+                  final rank = index + 1;
+
                   return GestureDetector(
                     onTap: () => _onJobSelected(job),
                     child: Container(
@@ -295,23 +335,20 @@ class _RecentReportWidgetState extends State<RecentReportWidget> {
                       ),
                       child: Row(
                         children: [
+                          // Ranking badge
                           Container(
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
-                              color: isSelected
-                                  ? const Color(0xFF2F8D46)
-                                  : Colors.grey[300],
+                              color: _getSimilarityColor(similarity),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Center(
                               child: Text(
-                                '#${int.parse(job['job_index']) + 1}',
+                                _getRankingIcon(rank),
                                 style: TextStyle(
-                                  color: isSelected
-                                      ? Colors.white
-                                      : Colors.grey[700],
-                                  fontSize: 12,
+                                  color: Colors.white,
+                                  fontSize: rank == 1 ? 14 : 12,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -319,18 +356,32 @@ class _RecentReportWidgetState extends State<RecentReportWidget> {
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: Text(
-                              job['job_title'],
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.w500,
-                                color: isSelected
-                                    ? const Color(0xFF1B5E20)
-                                    : Colors.black87,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  job['job_title'],
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
+                                    color: isSelected
+                                        ? const Color(0xFF1B5E20)
+                                        : Colors.black87,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${similarity.toStringAsFixed(1)}% match',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: _getSimilarityColor(similarity),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           if (isSelected)
@@ -444,24 +495,78 @@ class _RecentReportWidgetState extends State<RecentReportWidget> {
         _reportData!['job']?['job_title'] ?? 'Job Title Not Available';
     final jobDescription = _reportData!['job']?['job_description'] ??
         'Job description not available';
+    final similarity = double.tryParse(
+            _selectedJob?['similarity_percentage']?.toString() ??
+                _reportData!['job']?['similarity_percentage']?.toString() ??
+                '0') ??
+        0;
+
+    // Get current job rank (1-based)
+    final currentRank = _availableJobs.indexWhere(
+            (job) => job['job_index'] == _selectedJob!['job_index']) +
+        1;
+
+    // Check if this is the best match
+    final isBestMatch = currentRank == 1;
 
     return Column(
       children: [
-        // Current job indicator
+        // Current job indicator with ranking
         if (_availableJobs.length > 1)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: const Color(0xFF2F8D46).withOpacity(0.1),
+              color: isBestMatch
+                  ? const Color(0xFFFFF3CD) // Gold-ish for best match
+                  : const Color(0xFF2F8D46).withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text(
-              'Recommendation ${int.parse(_selectedJob!['job_index']) + 1} of ${_availableJobs.length}',
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF2F8D46),
-                fontWeight: FontWeight.w500,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Ranking medal
+                if (isBestMatch)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 6),
+                    child: Icon(
+                      Icons.workspace_premium,
+                      color: Color(0xFFD4AF37),
+                      size: 16,
+                    ),
+                  ),
+
+                Text(
+                  isBestMatch
+                      ? 'Best Match #$currentRank'
+                      : 'Match #$currentRank of ${_availableJobs.length}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isBestMatch
+                        ? const Color(0xFF856404)
+                        : const Color(0xFF2F8D46),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+
+                // Show similarity percentage
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _getSimilarityColor(similarity),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${similarity.toStringAsFixed(1)}%',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -486,25 +591,93 @@ class _RecentReportWidgetState extends State<RecentReportWidget> {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FDF9),
+              color: isBestMatch
+                  ? const Color(0xFFFFF9E6) // Light gold for best match card
+                  : const Color(0xFFF8FDF9),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: const Color(0xFF2F8D46).withOpacity(0.2),
+                color: isBestMatch
+                    ? const Color(0xFFD4AF37).withOpacity(0.3)
+                    : const Color(0xFF2F8D46).withOpacity(0.2),
                 width: 1.5,
               ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  jobTitle,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1B5E20),
-                  ),
+                // Title with ranking
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (isBestMatch)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8, top: 2),
+                        child: Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD4AF37),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Center(
+                            child: Text(
+                              '1',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            jobTitle,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isBestMatch
+                                  ? const Color(0xFF856404)
+                                  : const Color(0xFF1B5E20),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          // Similarity percentage bar
+                          Row(
+                            children: [
+                              Expanded(
+                                child: LinearProgressIndicator(
+                                  value: similarity / 100,
+                                  backgroundColor: Colors.grey[200],
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      _getSimilarityColor(similarity)),
+                                  borderRadius: BorderRadius.circular(10),
+                                  minHeight: 6,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${similarity.toStringAsFixed(1)}%',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: _getSimilarityColor(similarity),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
+
+                const SizedBox(height: 12),
+
                 Text(
                   _truncateText(jobDescription, maxLength: 120),
                   style: TextStyle(
@@ -544,6 +717,38 @@ class _RecentReportWidgetState extends State<RecentReportWidget> {
                           ],
                         ),
                       ),
+                      // Add ranking badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color:
+                              _getSimilarityColor(similarity).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _getSimilarityColor(similarity),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              isBestMatch ? '🏆' : _getRankingIcon(currentRank),
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              isBestMatch ? 'Best Match' : 'Rank #$currentRank',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: _getSimilarityColor(similarity),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
               ],
@@ -573,15 +778,17 @@ class _RecentReportWidgetState extends State<RecentReportWidget> {
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2F8D46),
+                  backgroundColor: isBestMatch
+                      ? const Color(0xFFD4AF37) // Gold for best match button
+                      : const Color(0xFF2F8D46),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                child: const Text(
-                  'View Full Report',
-                  style: TextStyle(
+                child: Text(
+                  isBestMatch ? 'View Best Match Report' : 'View Full Report',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -595,21 +802,26 @@ class _RecentReportWidgetState extends State<RecentReportWidget> {
                 width: 48,
                 child: ElevatedButton(
                   onPressed: () {
-                    final currentIndex = int.parse(_selectedJob!['job_index']);
+                    final currentIndex = _availableJobs.indexWhere((job) =>
+                        job['job_index'] == _selectedJob!['job_index']);
                     final nextIndex =
                         (currentIndex + 1) % _availableJobs.length;
                     _onJobSelected(_availableJobs[nextIndex]);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE8F5E9),
+                    backgroundColor: isBestMatch
+                        ? const Color(0xFFFFF3CD)
+                        : const Color(0xFFE8F5E9),
                     padding: const EdgeInsets.all(12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.navigate_next,
-                    color: Color(0xFF2F8D46),
+                    color: isBestMatch
+                        ? const Color(0xFFD4AF37)
+                        : const Color(0xFF2F8D46),
                     size: 20,
                   ),
                 ),

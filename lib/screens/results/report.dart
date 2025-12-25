@@ -4,7 +4,7 @@ import 'package:code_map/services/api_service.dart';
 import 'package:flutter/material.dart';
 import '../career_roadmap/career_roadmap.dart';
 
-class ReportScreen extends StatefulWidget {
+class ReportResultScreen extends StatefulWidget {
   final String userTestId;
   final String jobIndex;
   final Map<String, dynamic>? gapAnalysisData;
@@ -12,7 +12,7 @@ class ReportScreen extends StatefulWidget {
   final bool?
       fromGapAnalysis; // flag to track if navigated from Gap Analysis Screen
 
-  const ReportScreen({
+  const ReportResultScreen({
     super.key,
     required this.userTestId,
     required this.jobIndex,
@@ -22,10 +22,10 @@ class ReportScreen extends StatefulWidget {
   });
 
   @override
-  State<ReportScreen> createState() => _ReportScreenState();
+  State<ReportResultScreen> createState() => _ReportResultScreenState();
 }
 
-class _ReportScreenState extends State<ReportScreen> {
+class _ReportResultScreenState extends State<ReportResultScreen> {
   Map<String, dynamic>? report;
   Map<String, dynamic>? gapAnalysisData; // store gap analysis data
   bool isLoading = true;

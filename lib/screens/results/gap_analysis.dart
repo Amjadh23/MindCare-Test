@@ -242,6 +242,7 @@ class _GapAnalysisScreenState extends State<GapAnalysisScreen> {
                                     atemptNumber: widget.attemptNumber,
                                     gapAnalysisData:
                                         _gapData, // pass the already-fetched data
+                                    fromGapAnalysis: true,
                                   ),
                                 ),
                               );

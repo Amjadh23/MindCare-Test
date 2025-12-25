@@ -9,6 +9,8 @@ class ReportScreen extends StatefulWidget {
   final String jobIndex;
   final Map<String, dynamic>? gapAnalysisData;
   final int? atemptNumber; // needed for fetching gap analysis separately
+  final bool?
+      fromGapAnalysis; // flag to track if navigated from Gap Analysis Screen
 
   const ReportScreen({
     super.key,
@@ -16,6 +18,7 @@ class ReportScreen extends StatefulWidget {
     required this.jobIndex,
     this.gapAnalysisData,
     this.atemptNumber,
+    this.fromGapAnalysis = false, // default to false
   });
 
   @override
@@ -606,30 +609,32 @@ class _ReportScreenState extends State<ReportScreen> {
                         const SizedBox(height: 20),
                       ],
                       // button to Career Roadmap Screen
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => CareerRoadmap(
-                                      userTestId: widget.userTestId,
-                                      jobIndex: widget.jobIndex,
+                      if (widget.fromGapAnalysis == true) ...[
+                        Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => CareerRoadmap(
+                                        userTestId: widget.userTestId,
+                                        jobIndex: widget.jobIndex,
+                                      ),
                                     ),
-                                  ),
-                                );
-                              },
-                              child: const Text(
-                                  "View your Personalized Career Roadmap"),
-                            ),
-                            const SizedBox(height: 8),
-                          ],
+                                  );
+                                },
+                                child: const Text(
+                                    "View your Personalized Career Roadmap"),
+                              ),
+                              const SizedBox(height: 8),
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),

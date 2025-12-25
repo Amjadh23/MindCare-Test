@@ -1,7 +1,7 @@
 import 'package:code_map/screens/login_screen.dart';
 import 'package:code_map/screens/user/assessment_screen.dart';
 import 'package:code_map/screens/user/career_roadmap_screen.dart';
-import 'package:code_map/screens/user/report_screen.dart';
+import 'package:code_map/screens/user/report_history.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'recent_report_widget.dart';
@@ -350,7 +350,7 @@ class _HomePageState extends State<HomePage>
       case 1:
         return const CareerRoadmapScreen();
       case 2:
-        return const ReportScreen();
+        return const ReportHistoryScreen();
       case 3:
         return Center(
           child: Column(

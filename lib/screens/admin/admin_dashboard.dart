@@ -2,6 +2,7 @@ import 'package:code_map/screens/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'report_list_screen.dart';
 import 'user_list_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -128,10 +129,10 @@ class _AdminDashboardState extends State<AdminDashboard>
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
+                        const Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               '.CodeMap.',
                               style: TextStyle(
                                 fontSize: 24,
@@ -139,8 +140,8 @@ class _AdminDashboardState extends State<AdminDashboard>
                                 color: Colors.white,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            const Text(
+                            SizedBox(height: 4),
+                            Text(
                               'Admin Dashboard',
                               style: TextStyle(
                                 color: Colors.white70,
@@ -327,14 +328,15 @@ class _AdminDashboardState extends State<AdminDashboard>
                                     'Reports',
                                     Icons.assessment,
                                     geekDarkGreen,
-                                    () => ScaffoldMessenger.of(context)
-                                        .showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Reports coming soon!'),
-                                        backgroundColor: geekGreen,
-                                        behavior: SnackBarBehavior.floating,
-                                      ),
-                                    ),
+                                    () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const ReportListScreen(),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ],
                               ),

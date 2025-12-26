@@ -2,24 +2,24 @@ import os
 import json
 import re
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
+from langchain_groq import ChatGroq
+from langchain_core.prompts import PromptTemplate
+from langchain_classic.chains import LLMChain
 from langchain_core.output_parsers import JsonOutputParser
-from langchain.schema import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 
 # -----------------------------
 # Load environment variables
 # -----------------------------
 load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY not found. Please set it in your .env file.")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    raise ValueError("GROQ_API_KEY not found. Please set it in your .env file.")
 
 # -----------------------------
 # Initialize LLM
 # -----------------------------
-llm = ChatOpenAI(model="gpt-4o", temperature=0.2)
+llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.2, groq_api_key=GROQ_API_KEY)
 
 # -----------------------------
 # System Message

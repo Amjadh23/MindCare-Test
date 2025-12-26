@@ -3,7 +3,7 @@ import re
 import json
 from typing import Any, Dict, List
 from dotenv import load_dotenv
-import openai
+from groq import Groq
 import numpy as np
 import core.model_loader as loader
 from core.database import db
@@ -18,28 +18,29 @@ from models.firestore_models import (
 )
 
 # -----------------------------
-# Env & OpenAI client
+# Env & Groq client
 # -----------------------------
 load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY not found. Please set it in your .env file.")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    raise ValueError("GROQ_API_KEY not found. Please set it in your .env file.")
 
-client = openai.OpenAI(api_key=OPENAI_API_KEY)
+client = Groq(api_key=GROQ_API_KEY)
 
 # initialize Pinecone service
 pinecone_service = PineconeService(index_name="code-map")
 
 
 # -----------------------------
-# OpenAI call function
+# Groq call function
 # -----------------------------
 def call_openai(prompt: str, max_tokens=2000, temperature=0.2) -> str:
     """
-    Generate a descriptive profile text from OpenAI based on a prompt.
+    Generate a descriptive profile text from Groq based on a prompt.
+    (Function name kept for compatibility)
     """
     resp = client.chat.completions.create(
-        model="gpt-4o",
+        model="llama-3.3-70b-versatile",
         messages=[
             {
                 "role": "system",

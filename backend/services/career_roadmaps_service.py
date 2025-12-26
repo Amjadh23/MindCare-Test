@@ -2,7 +2,7 @@ import os
 import json
 import re
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 from models.firestore_models import (
     get_recommendation_id_by_user_test_id,
     get_user_job_skill_matches,
@@ -14,14 +14,14 @@ from models.firestore_models import (
 # Load environment variables
 # -----------------------------
 load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY not found. Please set it in your .env file.")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    raise ValueError("GROQ_API_KEY not found. Please set it in your .env file.")
 
 # -----------------------------
 # Initialize LLM
 # -----------------------------
-llm = ChatOpenAI(model="gpt-4o", temperature=0.2)
+llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.2, groq_api_key=GROQ_API_KEY)
 
 
 def generate_roadmap_with_openai(skill_status: dict, knowledge_status: dict) -> dict:
@@ -69,19 +69,40 @@ def generate_roadmap_with_openai(skill_status: dict, knowledge_status: dict) -> 
     3. Subtopics that fully cover what the user must learn
         - Subtopics must be: concise, technical, non-generic, actionable
         - Cover the complete domain but avoid unnecessary depth
+    
+    Return ONLY the JSON object, no markdown code blocks or explanations.
     """
 
     try:
         response = llm.invoke(prompt)
+        response_text = response.content.strip()
+        
+        # Remove markdown code blocks if present
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+        elif response_text.startswith("```"):
+            response_text = response_text[3:]
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+        response_text = response_text.strip()
 
         # find JSON in the response
-        json_match = re.search(r"\{.*\}", response.content, re.DOTALL)
+        json_match = re.search(r"\{.*\}", response_text, re.DOTALL)
         if json_match:
             roadmap_data = json.loads(json_match.group())
             return roadmap_data
 
+    except json.JSONDecodeError as e:
+        print(f"JSON parse error in roadmap generation: {e}")
     except Exception as e:
-        print(f"OpenAI API error: {e}")
+        print(f"Roadmap API error: {e}")
+    
+    # Return fallback roadmap if generation fails
+    print("Returning fallback roadmap due to generation error")
+    return {
+        "topics": {"Learning Path": "Basic"},
+        "sub_topics": {"Learning Path": ["Review skill gaps", "Practice coding exercises", "Build portfolio projects"]}
+    }
 
 
 def compute_career_roadmaps(user_test_id: str) -> dict:

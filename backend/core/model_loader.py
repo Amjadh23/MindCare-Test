@@ -20,7 +20,7 @@ def initialize_ai_models():
     hf_model_name = "sentence-transformers/all-MiniLM-L6-v2"
     _tokenizer = AutoTokenizer.from_pretrained(hf_model_name)
     _model = AutoModel.from_pretrained(hf_model_name)
-    print("✓ HuggingFace model loaded")
+    print("[OK] HuggingFace model loaded")
 
     folder_path = "data"
     csv_files = glob.glob(f"{folder_path}/*.csv")
@@ -36,14 +36,14 @@ def initialize_ai_models():
 
     if dfs:
         df = pd.concat(dfs, ignore_index=True)
-        print(f"✓ Loaded {len(df)} job records")
+        print(f"[OK] Loaded {len(df)} job records")
         embeddings_file = os.path.join(folder_path, "job_embeddings.pkl")
 
         if os.path.exists(embeddings_file):
             try:
                 with open(embeddings_file, "rb") as f:
                     job_embeddings = pickle.load(f)
-                print(f"✓ Loaded {len(job_embeddings)} pre-generated embeddings")
+                print(f"[OK] Loaded {len(job_embeddings)} pre-generated embeddings")
             except Exception as e:
                 print(f"Error loading embeddings: {e}. Regenerating...")
                 job_embeddings = _generate_and_save_embeddings(df, embeddings_file)
@@ -62,7 +62,7 @@ def _generate_and_save_embeddings(df, embeddings_file):
     try:
         with open(embeddings_file, "wb") as f:
             pickle.dump(embeddings, f)
-        print(f"✓ Saved {len(embeddings)} embeddings to {embeddings_file}")
+        print(f"[OK] Saved {len(embeddings)} embeddings to {embeddings_file}")
     except Exception as e:
         print(f"Error saving embeddings: {e}")
     return embeddings

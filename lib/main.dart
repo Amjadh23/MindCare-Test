@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'services/api_service.dart';
+import 'firebase_options.dart';
 
 bool isBackendReady = false;
 
@@ -14,7 +15,9 @@ Future<void> main() async {
   await dotenv.load(fileName: 'assets/.env');
 
   // initialize Firebase
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   // pre-warm backend
   await _preWarmBackend();
